@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>テスト用HTMLファイル</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f0f0f0;
+    }
+    .test-box {
+      padding: 10px;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>HTMLテストページ</h1>
+
+  <div class="test-box">
+    <h2>ボタンのテスト</h2>
+    <button onclick="alert('ボタンがクリックされました')">クリックしてみて</button>
+  </div>
+
+  <div class="test-box">
+    <h2>フォームのテスト</h2>
+    <form onsubmit="handleSubmit(event)">
+      <label for="name">名前：</label>
+      <input type="text" id="name" name="name">
+      <input type="submit" value="送信">
+    </form>
+    <p id="result"></p>
+  </div>
+
+  <div class="test-box">
+    <h2>リストのテスト</h2>
+    <ul>
+      <li>項目1</li>
+      <li>項目2</li>
+      <li>項目3</li>
+    </ul>
+  </div>
+
+  <script>
+    function handleSubmit(event) {
+      event.preventDefault();
+      const name = document.getElementById('name').value;
+      document.getElementById('result').textContent = `こんにちは、${name}さん！`;
+    }
+  </script>
+
+</body>
+</html>
