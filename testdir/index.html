@@ -14,9 +14,13 @@
     --glass: rgba(255,255,255,0.03);
   }
   *{box-sizing:border-box}
-  html,body{height:100%}
-  body{
+  html,body{
+    height:100%;
     margin:0;
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  body{
     font-family: Inter, "Helvetica Neue", Hiragino Kaku Gothic ProN, "Noto Sans JP", sans-serif;
     background: linear-gradient(180deg,#051025 0%, #071127 60%);
     color:#e6eef6;
@@ -26,14 +30,17 @@
     justify-content:center;
     padding:20px;
     gap:20px;
+    max-width: 100vw;
   }
 
   .app {
     width:100%;
+    max-width: 100vw;
     max-width:1100px;
     display:grid;
     grid-template-columns: 1fr 360px;
     gap:20px;
+    box-sizing: border-box;
   }
 
   .board-wrap {
@@ -47,13 +54,15 @@
     display:grid;
     grid-template-columns: repeat(8, minmax(0,1fr));
     gap:6px;
-    aspect-ratio:1/1;
-    width: min(75vh, 680px);
-    max-width:100%;
+    aspect-ratio:1 / 1;
+    width: 100%;
+    max-width: 680px;
+    max-height: 100vw;
     border-radius:10px;
     padding:10px;
     background: linear-gradient(180deg,#092b24 0%, #06322a 100%);
     box-shadow: inset 0 2px 12px rgba(0,0,0,0.6);
+    box-sizing: border-box;
   }
 
   .cell {
@@ -185,6 +194,21 @@
     .app{grid-template-columns: 1fr}
     .controls{order:2}
   }
+  @media (max-width:480px) {
+    .board {
+      max-width: 100vw;
+      max-height: 100vw;
+      gap: 4px;
+      padding: 6px;
+    }
+    .cell {
+      border-radius: 4px;
+    }
+    .disc {
+      width: 80%;
+      height: 80%;
+    }
+  }
 </style>
 </head>
 <body>
@@ -254,7 +278,7 @@
         </div>
 
         <div style="margin-top:10px;color:var(--muted);font-size:13px">
-          操作: マウスでセルクリック、またはキーボード方向+Enterで置けます。  
+          操作: マウスでセルクリック、またはキーボード方向+Enterで置けます。<br />
           角を重視する評価、可変深度のAI（アルファベータ）を搭載しています。
         </div>
 
@@ -268,28 +292,14 @@
   </div>
 
 <script>
-/*
-  本格風オセロ実装 (静的フロントエンド)
-  - 盤面は 8x8
-  - 黒: 1, 白: -1, 空: 0
-  - 合法手判定、裏返し、パス、終了判定
-  - Undo（履歴）
-  - AI: ミニマックス + アルファベータ、評価関数 (石差 + 角重視 + 可動手数)
-*/
-
 const BOARD_SIZE = 8;
 const EMPTY = 0;
 const BLACK = 1;
 const WHITE = -1;
-const DIRS = [
-  [-1,-1],[-1,0],[-1,1],
-  [0,-1],       [0,1],
-  [1,-1], [1,0], [1,1]
-];
 
 let board = [];
 let turn = BLACK;
-let history = []; // {board, turn, move: {r,c} or null}
+let history = []; // {board, turn, move}
 let moveList = [];
 let flipAnimation = true;
 
@@ -311,6 +321,7 @@ const flipAnimToggle = document.getElementById('flipAnimToggle');
 function cloneBoard(b){
   return b.map(row=>row.slice());
 }
+
 function initBoard(){
   board = Array.from({length:BOARD_SIZE}, ()=>Array(BOARD_SIZE).fill(EMPTY));
   const mid = BOARD_SIZE/2;
@@ -339,4 +350,23 @@ function updateHistoryUI(){
   for(let i=1;i<history.length;i++){
     const mv = history[i].move;
     const txt = mv ? `${i}. ${String.fromCharCode(65+mv.c)}${mv.r+1}` : `${i}. pass`;
-    const 
+    const div = document.createElement('div');
+    div.className = 'move-pill';
+    div.textContent = txt;
+    historyList.appendChild(div);
+  }
+}
+
+function render() {
+  boardEl.innerHTML = '';
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.setAttribute('role', 'gridcell');
+      cell.setAttribute('aria-rowindex', r + 1);
+      cell.setAttribute('aria-colindex', c + 1);
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+
+      if (board[r][c] === BLACK || board[r][c
