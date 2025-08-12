@@ -3,243 +3,331 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>本格風オセロ（合法手表示＋簡単AI）</title>
+<title>本格風オセロ（Reversi）</title>
 <style>
-  body { background:#051025; color:#e6eef6; font-family: sans-serif; display:flex; justify-content:center; padding:20px; }
-  .board { display:grid; grid-template-columns: repeat(8, 50px); gap:5px; background:#092b24; padding:10px; border-radius:10px; }
-  .cell { background:#113a2d; border-radius:6px; width:50px; height:50px; cursor:pointer; position:relative; }
-  .disc { border-radius:50%; width:80%; height:80%; position:absolute; top:10%; left:10%; }
+  :root{
+    --bg:#0f1724;
+    --panel:#0b1220;
+    --accent:#10b981;
+    --muted:#9aa4b2;
+    --card:#0f1728;
+    --glass: rgba(255,255,255,0.03);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family: Inter, "Helvetica Neue", Hiragino Kaku Gothic ProN, "Noto Sans JP", sans-serif;
+    background: linear-gradient(180deg,#051025 0%, #071127 60%);
+    color:#e6eef6;
+    -webkit-font-smoothing:antialiased;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    gap:20px;
+  }
+
+  .app {
+    width:100%;
+    max-width:1100px;
+    display:grid;
+    grid-template-columns: 1fr 360px;
+    gap:20px;
+  }
+
+  .board-wrap {
+    background: linear-gradient(180deg,#07202a 0%, #05202a 60%);
+    padding:18px;
+    border-radius:14px;
+    box-shadow: 0 8px 30px rgba(2,8,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+  }
+
+  .board {
+    display:grid;
+    grid-template-columns: repeat(8, minmax(0,1fr));
+    gap:6px;
+    aspect-ratio:1/1;
+    width: min(75vh, 680px);
+    max-width:100%;
+    border-radius:10px;
+    padding:10px;
+    background: linear-gradient(180deg,#092b24 0%, #06322a 100%);
+    box-shadow: inset 0 2px 12px rgba(0,0,0,0.6);
+  }
+
+  .cell {
+    position:relative;
+    background: linear-gradient(180deg,#113a2d 0%, #0a2c22 100%);
+    border-radius:6px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    user-select:none;
+    transition: transform .06s ease;
+  }
+  .cell:active{transform:scale(.98)}
+  .cell.disabled{cursor:default; opacity:.95}
+  .disc {
+    width:74%;
+    height:74%;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.45), inset 0 -6px 12px rgba(0,0,0,0.25);
+    transition: transform .18s ease, box-shadow .18s ease;
+    transform-origin:center;
+  }
   .disc.black { background: radial-gradient(circle at 30% 30%, #0b0b0b, #1b1b1b); }
   .disc.white { background: radial-gradient(circle at 30% 30%, #fff, #dfe8ee); }
-  .hint-dot {
-    position: absolute;
-    width: 12px; height: 12px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.6);
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
+
+  .hint {
+    position:absolute;
+    right:6px;
+    bottom:6px;
+    background: rgba(255,255,255,0.06);
+    color:var(--muted);
+    font-size:12px;
+    padding:4px 6px;
+    border-radius:6px;
+    pointer-events:none;
   }
-  .controls { margin-left:20px; display:flex; flex-direction:column; gap:10px; }
-  button { padding:8px 12px; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
-  button:hover { opacity:0.8; }
+
+  .cell.valid{
+    outline: 2px dashed rgba(255,255,255,0.06);
+    box-shadow: 0 6px 18px rgba(2,8,23,0.45), inset 0 1px 0 rgba(255,255,255,0.02);
+  }
+  .cell .dot {
+    position:absolute;
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.82);
+    opacity:.95;
+    transform: translateY(-2px);
+    pointer-events:none;
+  }
+  .controls {
+    background: linear-gradient(180deg,#061224 0%, #071731 100%);
+    padding:18px;
+    border-radius:14px;
+    min-height: 360px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    box-shadow: 0 8px 30px rgba(2,8,23,0.6);
+  }
+  .row{display:flex;gap:8px;align-items:center}
+  .title {
+    font-weight:700;
+    font-size:18px;
+    letter-spacing:.2px;
+  }
+  .status {
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .turn {
+    padding:8px 12px;
+    border-radius:999px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .chip {
+    width:18px;height:18px;border-radius:50%;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4), inset 0 -3px 8px rgba(0,0,0,0.2);
+  }
+  .chip.black{background:#0b0b0b}
+  .chip.white{background:linear-gradient(#fff,#dfe8ee)}
+  .score {
+    font-weight:600;
+    color:var(--muted);
+    font-size:13px;
+  }
+
+  .btn {
+    appearance:none;
+    border:0;
+    padding:10px 12px;
+    border-radius:10px;
+    cursor:pointer;
+    background:var(--glass);
+    color:var(--muted);
+    font-weight:600;
+    transition: all .12s ease;
+  }
+  .btn:hover{ transform: translateY(-3px) }
+  .btn.primary{
+    background: linear-gradient(90deg,var(--accent), #06a27b);
+    color:#042017;
+    box-shadow: 0 8px 18px rgba(16,185,129,0.14);
+  }
+
+  .settings { display:flex; flex-direction:column; gap:8px; }
+  .setting-row { display:flex; gap:8px; align-items:center; justify-content:space-between; }
+  select,input[type=range]{background:transparent;color:var(--muted);border-radius:8px;padding:6px 8px;border:1px solid rgba(255,255,255,0.04)}
+  small.muted{color:var(--muted);font-size:12px}
+
+  footer.meta{margin-top:6px;color:var(--muted);font-size:12px}
+  .history {
+    margin-top:8px;
+    display:flex; gap:8px; flex-wrap:wrap;
+  }
+  .move-pill{padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.03);font-size:13px;color:var(--muted);cursor:pointer}
+  .move-pill:hover{background:rgba(255,255,255,0.04)}
+
+  @media (max-width:980px){
+    .app{grid-template-columns: 1fr}
+    .controls{order:2}
+  }
 </style>
 </head>
 <body>
+  <div class="app" aria-live="polite">
+    <div class="board-wrap" role="application" aria-label="オセロ盤">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <div class="title">本格風オセロ</div>
+          <div class="muted" style="color:var(--muted);font-size:13px">静的ウェブアプリ — 保存してすぐ遊べます</div>
+        </div>
+        <div class="status">
+          <div class="turn" id="turnIndicator" aria-live="polite">
+            <div class="chip" id="turnChip"></div>
+            <div id="turnText" style="font-weight:700">黒の番</div>
+          </div>
+        </div>
+      </div>
 
-<div>
-  <div id="board" class="board"></div>
-  <div class="controls">
-    <button id="undoBtn">取り消し（Undo）</button>
-    <button id="passBtn">パス</button>
-    <div id="status"></div>
+      <div id="board" class="board" role="grid" aria-label="8x8 のオセロ盤"></div>
+
+      <div style="display:flex;gap:10px;margin-top:12px;align-items:center;justify-content:space-between">
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="score" id="scoreDisplay">黒: 2  白: 2</div>
+          <div style="color:var(--muted);font-size:13px" id="flipCount">—</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="undoBtn">取り消し（Undo）</button>
+          <button class="btn" id="passBtn">パス</button>
+          <button class="btn primary" id="resetBtn">リセット</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="controls" aria-label="コントロールパネル">
+      <div>
+        <div class="title">コントロール</div>
+        <div style="margin-top:8px;color:var(--muted);font-size:13px">対戦モード・AIの強さなどを設定できます</div>
+      </div>
+
+      <div class="settings">
+        <div class="setting-row">
+          <label for="mode">モード</label>
+          <select id="mode" aria-label="プレイヤーモード">
+            <option value="pvp">人対人</option>
+            <option value="pve" selected>人対AI</option>
+            <option value="eve">AI対AI（観戦）</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <label for="aiDepth">AI 強さ</label>
+          <input id="aiDepth" type="range" min="1" max="5" step="1" value="3" aria-label="AIの探索深さ">
+        </div>
+        <div class="setting-row">
+          <label for="hintToggle">合法手の数字表示</label>
+          <input type="checkbox" id="hintToggle" checked aria-label="合法手の表示">
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button class="btn" id="stepAI">AI 一手（観戦時・試し）</button>
+          <button class="btn" id="flipAnimToggle">裏返しアニメON/OFF</button>
+        </div>
+
+        <div style="margin-top:12px">
+          <div style="font-weight:700">履歴</div>
+          <div class="history" id="historyList" aria-live="polite"></div>
+        </div>
+
+        <div style="margin-top:10px;color:var(--muted);font-size:13px">
+          操作: マウスでセルクリック、またはキーボード方向+Enterで置けます。  
+          角を重視する評価、可変深度のAI（アルファベータ）を搭載しています。
+        </div>
+
+      </div>
+
+      <footer class="meta">
+        <div style="margin-top:10px">作成: ChatGPT — オフラインで動作する静的アプリ</div>
+        <div style="margin-top:6px;color:var(--muted)">保存して配布してください（index.html）</div>
+      </footer>
+    </aside>
   </div>
-</div>
 
 <script>
 const BOARD_SIZE = 8;
-const EMPTY = 0, BLACK = 1, WHITE = -1;
+const EMPTY = 0;
+const BLACK = 1;
+const WHITE = -1;
+const DIRS = [
+  [-1,-1],[-1,0],[-1,1],
+  [0,-1],       [0,1],
+  [1,-1], [1,0], [1,1]
+];
+
 let board = [];
 let turn = BLACK;
 let history = [];
-const PLAYER = BLACK; // 人間は黒
-const AI = WHITE;     // AIは白
+let moveList = [];
+let flipAnimation = true;
 
-function cloneBoard(b) {
-  return b.map(row => row.slice());
+const boardEl = document.getElementById('board');
+const turnText = document.getElementById('turnText');
+const turnChip = document.getElementById('turnChip');
+const scoreDisplay = document.getElementById('scoreDisplay');
+const flipCountEl = document.getElementById('flipCount');
+const undoBtn = document.getElementById('undoBtn');
+const resetBtn = document.getElementById('resetBtn');
+const passBtn = document.getElementById('passBtn');
+const modeSel = document.getElementById('mode');
+const aiDepthRange = document.getElementById('aiDepth');
+const hintToggle = document.getElementById('hintToggle');
+const historyList = document.getElementById('historyList');
+const stepAI = document.getElementById('stepAI');
+const flipAnimToggle = document.getElementById('flipAnimToggle');
+
+function cloneBoard(b){
+  return b.map(row=>row.slice());
 }
 
-function initBoard() {
-  board = Array.from({length:BOARD_SIZE}, () => Array(BOARD_SIZE).fill(EMPTY));
-  const mid = BOARD_SIZE / 2;
+function initBoard(){
+  board = Array.from({length:BOARD_SIZE}, ()=>Array(BOARD_SIZE).fill(EMPTY));
+  const mid = BOARD_SIZE/2;
   board[mid-1][mid-1] = WHITE;
   board[mid][mid] = WHITE;
   board[mid-1][mid] = BLACK;
   board[mid][mid-1] = BLACK;
   turn = BLACK;
   history = [];
-  pushHistory();
+  moveList = [];
+  pushHistory(null);
   render();
   updateStatus();
 }
 
-function pushHistory() {
+function pushHistory(move){
   history.push({
     board: cloneBoard(board),
-    turn: turn,
+    turn,
+    move
   });
+  updateHistoryUI();
 }
 
-function undo() {
-  if(history.length <= 1) return;
-  history.pop();
-  const last = history[history.length -1];
-  board = cloneBoard(last.board);
-  turn = last.turn;
-  render();
-  updateStatus();
-}
-
-function render() {
-  const boardEl = document.getElementById('board');
-  boardEl.innerHTML = '';
-  for(let r=0; r<BOARD_SIZE; r++) {
-    for(let c=0; c<BOARD_SIZE; c++) {
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.dataset.r = r;
-      cell.dataset.c = c;
-      if(board[r][c] === BLACK || board[r][c] === WHITE) {
-        const disc = document.createElement('div');
-        disc.className = 'disc ' + (board[r][c] === BLACK ? 'black' : 'white');
-        cell.appendChild(disc);
-      } else if(turn === PLAYER && isValidMove(r,c,turn)) {
-        const hintDot = document.createElement('div');
-        hintDot.className = 'hint-dot';
-        cell.appendChild(hintDot);
-      }
-      boardEl.appendChild(cell);
-      if(turn === PLAYER){
-        cell.style.cursor = isValidMove(r,c,turn) ? 'pointer' : 'default';
-        cell.onclick = () => {
-          if(isValidMove(r,c,turn)){
-            makeMove(r,c,turn);
-            turn = -turn;
-            pushHistory();
-            render();
-            updateStatus();
-            if(turn === AI){
-              setTimeout(aiMove, 300);
-            }
-          }
-        };
-      } else {
-        cell.style.cursor = 'default';
-        cell.onclick = null;
-      }
-    }
-  }
-}
-
-function updateStatus() {
-  const statusEl = document.getElementById('status');
-  if(!hasAnyValidMove(turn)){
-    if(!hasAnyValidMove(-turn)){
-      statusEl.textContent = 'ゲーム終了！';
-      return;
-    }
-    statusEl.textContent = (turn === PLAYER ? 'あなた' : 'AI') + 'はパスしました。';
-    turn = -turn;
-    if(turn === AI){
-      setTimeout(aiMove, 300);
-    }
-    pushHistory();
-    render();
-    return;
-  }
-  statusEl.textContent = (turn === PLAYER ? 'あなた' : 'AI') + 'の番です';
-}
-
-function isValidMove(r,c,color) {
-  if(board[r][c] !== EMPTY) return false;
-  const DIRS = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-  for(const [dr,dc] of DIRS) {
-    let nr = r+dr, nc = c+dc;
-    let foundOpposite = false;
-    while(nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
-      if(board[nr][nc] === -color) {
-        foundOpposite = true;
-      } else if(board[nr][nc] === color && foundOpposite) {
-        return true;
-      } else {
-        break;
-      }
-      nr += dr; nc += dc;
-    }
-  }
-  return false;
-}
-
-function hasAnyValidMove(color) {
-  for(let r=0; r<BOARD_SIZE; r++) {
-    for(let c=0; c<BOARD_SIZE; c++) {
-      if(isValidMove(r,c,color)) return true;
-    }
-  }
-  return false;
-}
-
-function makeMove(r,c,color) {
-  board[r][c] = color;
-  flipDiscs(r,c,color);
-}
-
-function flipDiscs(r,c,color) {
-  const DIRS = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-  for(const [dr,dc] of DIRS) {
-    let toFlip = [];
-    let nr = r+dr, nc = c+dc;
-    while(nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
-      if(board[nr][nc] === -color) {
-        toFlip.push([nr,nc]);
-      } else if(board[nr][nc] === color) {
-        for(const [fr,fc] of toFlip) board[fr][fc] = color;
-        break;
-      } else {
-        break;
-      }
-      nr += dr; nc += dc;
-    }
-  }
-}
-
-function aiMove(){
-  if(!hasAnyValidMove(AI)){
-    turn = PLAYER;
-    updateStatus();
-    return;
-  }
-  // 合法手を全取得
-  const candidates = [];
-  for(let r=0; r<BOARD_SIZE; r++){
-    for(let c=0; c<BOARD_SIZE; c++){
-      if(isValidMove(r,c,AI)){
-        candidates.push([r,c]);
-      }
-    }
-  }
-  if(candidates.length === 0) return;
-  // ランダムで選ぶだけの簡単AI
-  const [r,c] = candidates[Math.floor(Math.random()*candidates.length)];
-  makeMove(r,c,AI);
-  turn = PLAYER;
-  pushHistory();
-  render();
-  updateStatus();
-}
-
-initBoard();
-
-document.getElementById('undoBtn').addEventListener('click', () => {
-  undo();
-  if(turn === AI){
-    turn = PLAYER;
-  }
-  updateStatus();
-});
-document.getElementById('passBtn').addEventListener('click', () => {
-  if(!hasAnyValidMove(turn)){
-    turn = -turn;
-    updateStatus();
-    if(turn === AI){
-      setTimeout(aiMove, 300);
-    }
-  } else {
-    alert('置ける場所があります。パスできません。');
-  }
-});
-</script>
-
-</body>
-</html>
+function updateHistoryUI(){
+  historyList.innerHTML = '';
+  for(let i=1;i<history.length
