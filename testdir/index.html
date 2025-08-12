@@ -3,26 +3,40 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>本格風オセロ（Reversi）</title>
+<title>本格風オセロ（Undo・パス対応版）</title>
 <style>
-  /* 簡略化したスタイル省略可 */
   body { background:#051025; color:#e6eef6; font-family: sans-serif; display:flex; justify-content:center; padding:20px; }
   .board { display:grid; grid-template-columns: repeat(8, 50px); gap:5px; background:#092b24; padding:10px; border-radius:10px; }
   .cell { background:#113a2d; border-radius:6px; width:50px; height:50px; cursor:pointer; position:relative; }
   .disc { border-radius:50%; width:80%; height:80%; position:absolute; top:10%; left:10%; }
   .disc.black { background: radial-gradient(circle at 30% 30%, #0b0b0b, #1b1b1b); }
   .disc.white { background: radial-gradient(circle at 30% 30%, #fff, #dfe8ee); }
+  .controls { margin-left:20px; display:flex; flex-direction:column; gap:10px; }
+  button { padding:8px 12px; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
+  button:hover { opacity:0.8; }
 </style>
 </head>
 <body>
 
-<div id="board" class="board"></div>
+<div>
+  <div id="board" class="board"></div>
+  <div class="controls">
+    <button id="undoBtn">取り消し（Undo）</button>
+    <button id="passBtn">パス</button>
+    <div id="status"></div>
+  </div>
+</div>
 
 <script>
 const BOARD_SIZE = 8;
 const EMPTY = 0, BLACK = 1, WHITE = -1;
 let board = [];
 let turn = BLACK;
+let history = [];
+
+function cloneBoard(b) {
+  return b.map(row => row.slice());
+}
 
 function initBoard() {
   board = Array.from({length:BOARD_SIZE}, () => Array(BOARD_SIZE).fill(EMPTY));
@@ -32,7 +46,27 @@ function initBoard() {
   board[mid-1][mid] = BLACK;
   board[mid][mid-1] = BLACK;
   turn = BLACK;
+  history = [];
+  pushHistory();
   render();
+  updateStatus();
+}
+
+function pushHistory() {
+  history.push({
+    board: cloneBoard(board),
+    turn: turn,
+  });
+}
+
+function undo() {
+  if(history.length <= 1) return;
+  history.pop();
+  const last = history[history.length -1];
+  board = cloneBoard(last.board);
+  turn = last.turn;
+  render();
+  updateStatus();
 }
 
 function render() {
@@ -51,14 +85,29 @@ function render() {
       }
       boardEl.appendChild(cell);
       cell.addEventListener('click', () => {
-        if (isValidMove(r,c,turn)) {
+        if(isValidMove(r,c,turn)){
           makeMove(r,c,turn);
           turn = -turn;
+          if(!hasAnyValidMove(turn)){
+            // パス処理
+            alert('パスします');
+            turn = -turn;
+            if(!hasAnyValidMove(turn)){
+              alert('ゲーム終了');
+            }
+          }
+          pushHistory();
           render();
+          updateStatus();
         }
       });
     }
   }
+}
+
+function updateStatus() {
+  const statusEl = document.getElementById('status');
+  statusEl.textContent = (turn === BLACK) ? '黒の番です' : '白の番です';
 }
 
 function isValidMove(r,c,color) {
@@ -76,6 +125,15 @@ function isValidMove(r,c,color) {
         break;
       }
       nr += dr; nc += dc;
+    }
+  }
+  return false;
+}
+
+function hasAnyValidMove(color) {
+  for(let r=0; r<BOARD_SIZE; r++) {
+    for(let c=0; c<BOARD_SIZE; c++) {
+      if(isValidMove(r,c,color)) return true;
     }
   }
   return false;
@@ -106,6 +164,19 @@ function flipDiscs(r,c,color) {
 }
 
 initBoard();
+
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('passBtn').addEventListener('click', () => {
+  if(!hasAnyValidMove(turn)){
+    turn = -turn;
+    alert('パスしました。次の人の番です');
+    pushHistory();
+    render();
+    updateStatus();
+  } else {
+    alert('置ける場所があります。パスできません。');
+  }
+});
 </script>
 
 </body>
