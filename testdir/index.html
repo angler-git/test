@@ -14,7 +14,7 @@
     --glass: rgba(255,255,255,0.03);
   }
   *{box-sizing:border-box}
-  html,body{height:100%}
+  html,body{height:100%; margin:0; padding:0;}
   body{
     margin:0;
     font-family: Inter, "Helvetica Neue", Hiragino Kaku Gothic ProN, "Noto Sans JP", sans-serif;
@@ -41,15 +41,18 @@
     padding:18px;
     border-radius:14px;
     box-shadow: 0 8px 30px rgba(2,8,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
   .board {
     display:grid;
     grid-template-columns: repeat(8, minmax(0,1fr));
     gap:6px;
-    aspect-ratio:1/1;
-    width: min(75vh, 680px);
-    max-width:100%;
+    aspect-ratio:1 / 1;
+    width: 100%;
+    max-width: 680px;
     border-radius:10px;
     padding:10px;
     background: linear-gradient(180deg,#092b24 0%, #06322a 100%);
@@ -107,7 +110,6 @@
     background:rgba(255,255,255,0.82);
     opacity:.95;
     transform: translateY(-2px);
-    pointer-events:none;
   }
   .controls {
     background: linear-gradient(180deg,#061224 0%, #071731 100%);
@@ -186,6 +188,12 @@
     .app{grid-template-columns: 1fr}
     .controls{order:2}
   }
+  @media (max-width:768px) {
+    .board {
+      width: 90vw;
+      max-width: none;
+    }
+  }
 </style>
 </head>
 <body>
@@ -230,7 +238,7 @@
           <label for="mode">モード</label>
           <select id="mode" aria-label="プレイヤーモード">
             <option value="pvp">人対人</option>
-            <option value="pve" selected>人対AI</option>
+            <option value="pve">人対AI</option>
             <option value="eve">AI対AI（観戦）</option>
           </select>
         </div>
@@ -269,6 +277,15 @@
   </div>
 
 <script>
+/*
+  本格風オセロ実装 (静的フロントエンド)
+  - 盤面は 8x8
+  - 黒: 1, 白: -1, 空: 0
+  - 合法手判定、裏返し、パス、終了判定
+  - Undo（履歴）
+  - AI: ミニマックス + アルファベータ、評価関数 (石差 + 角重視 + 可動手数)
+*/
+
 const BOARD_SIZE = 8;
 const EMPTY = 0;
 const BLACK = 1;
@@ -281,7 +298,7 @@ const DIRS = [
 
 let board = [];
 let turn = BLACK;
-let history = [];
+let history = []; // {board, turn, move: {r,c} or null}
 let moveList = [];
 let flipAnimation = true;
 
@@ -316,7 +333,6 @@ function initBoard(){
   moveList = [];
   pushHistory(null);
   render();
-  updateStatus();
 }
 
 function pushHistory(move){
@@ -330,4 +346,97 @@ function pushHistory(move){
 
 function updateHistoryUI(){
   historyList.innerHTML = '';
-  for(let i=1;i<history.length
+  for(let i=1;i<history.length;i++){
+    const mv = history[i].move;
+    const txt = mv ? `${i}. ${String.fromCharCode(65+mv.c)}${mv.r+1}` : `${i}. pass`;
+    const pill = document.createElement('div');
+    pill.className = 'move-pill';
+    pill.textContent = txt;
+    pill.onclick = () => {
+      loadHistory(i);
+    };
+    historyList.appendChild(pill);
+  }
+}
+
+function loadHistory(index){
+  if(index < 0 || index >= history.length) return;
+  const h = history[index];
+  board = cloneBoard(h.board);
+  turn = h.turn;
+  history = history.slice(0,index+1);
+  render();
+  updateHistoryUI();
+}
+
+function render(){
+  boardEl.innerHTML = '';
+  let scoreB = 0;
+  let scoreW = 0;
+  let validMoves = getValidMoves(board, turn);
+  for(let r=0;r<BOARD_SIZE;r++){
+    for(let c=0;c<BOARD_SIZE;c++){
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.setAttribute('role','gridcell');
+      cell.setAttribute('aria-rowindex',r+1);
+      cell.setAttribute('aria-colindex',c+1);
+      if(board[r][c] === BLACK){
+        const disc = document.createElement('div');
+        disc.className = 'disc black';
+        cell.appendChild(disc);
+        scoreB++;
+      } else if(board[r][c] === WHITE){
+        const disc = document.createElement('div');
+        disc.className = 'disc white';
+        cell.appendChild(disc);
+        scoreW++;
+      } else {
+        // 合法手の数字表示
+        if(hintToggle.checked){
+          const moveIndex = validMoves.findIndex(m => m.r === r && m.c === c);
+          if(moveIndex !== -1){
+            const hint = document.createElement('div');
+            hint.className = 'hint';
+            hint.textContent = (moveIndex + 1).toString();
+            cell.appendChild(hint);
+            cell.classList.add('valid');
+          }
+        } else if(validMoves.some(m => m.r === r && m.c === c)){
+          cell.classList.add('valid');
+        }
+      }
+      cell.onclick = () => {
+        if(canPut(r,c)){
+          putDisc(r,c);
+        }
+      };
+      boardEl.appendChild(cell);
+    }
+  }
+  scoreDisplay.textContent = `黒: ${scoreB}  白: ${scoreW}`;
+  turnText.textContent = turn === BLACK ? '黒の番' : '白の番';
+  turnChip.className = 'chip ' + (turn === BLACK ? 'black' : 'white');
+}
+
+function canPut(r,c){
+  if(board[r][c] !== EMPTY) return false;
+  return isValidMove(board, turn, r, c).length > 0;
+}
+
+function getValidMoves(bd, player){
+  const moves = [];
+  for(let r=0;r<BOARD_SIZE;r++){
+    for(let c=0;c<BOARD_SIZE;c++){
+      if(bd[r][c] === EMPTY && isValidMove(bd, player, r, c).length > 0){
+        moves.push({r,c});
+      }
+    }
+  }
+  return moves;
+}
+
+function isValidMove(bd, player, r, c){
+  if(bd[r][c] !== EMPTY) return [];
+  let flipped = [];
+  for(const
