@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>本格風オセロ（Undo・パス対応版）</title>
+<title>本格風オセロ（合法手表示＋簡単AI）</title>
 <style>
   body { background:#051025; color:#e6eef6; font-family: sans-serif; display:flex; justify-content:center; padding:20px; }
   .board { display:grid; grid-template-columns: repeat(8, 50px); gap:5px; background:#092b24; padding:10px; border-radius:10px; }
@@ -11,6 +11,16 @@
   .disc { border-radius:50%; width:80%; height:80%; position:absolute; top:10%; left:10%; }
   .disc.black { background: radial-gradient(circle at 30% 30%, #0b0b0b, #1b1b1b); }
   .disc.white { background: radial-gradient(circle at 30% 30%, #fff, #dfe8ee); }
+  .hint-dot {
+    position: absolute;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.6);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
   .controls { margin-left:20px; display:flex; flex-direction:column; gap:10px; }
   button { padding:8px 12px; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
   button:hover { opacity:0.8; }
@@ -33,6 +43,8 @@ const EMPTY = 0, BLACK = 1, WHITE = -1;
 let board = [];
 let turn = BLACK;
 let history = [];
+const PLAYER = BLACK; // 人間は黒
+const AI = WHITE;     // AIは白
 
 function cloneBoard(b) {
   return b.map(row => row.slice());
@@ -82,32 +94,51 @@ function render() {
         const disc = document.createElement('div');
         disc.className = 'disc ' + (board[r][c] === BLACK ? 'black' : 'white');
         cell.appendChild(disc);
+      } else if(turn === PLAYER && isValidMove(r,c,turn)) {
+        const hintDot = document.createElement('div');
+        hintDot.className = 'hint-dot';
+        cell.appendChild(hintDot);
       }
       boardEl.appendChild(cell);
-      cell.addEventListener('click', () => {
-        if(isValidMove(r,c,turn)){
-          makeMove(r,c,turn);
-          turn = -turn;
-          if(!hasAnyValidMove(turn)){
-            // パス処理
-            alert('パスします');
+      if(turn === PLAYER){
+        cell.style.cursor = isValidMove(r,c,turn) ? 'pointer' : 'default';
+        cell.onclick = () => {
+          if(isValidMove(r,c,turn)){
+            makeMove(r,c,turn);
             turn = -turn;
-            if(!hasAnyValidMove(turn)){
-              alert('ゲーム終了');
+            pushHistory();
+            render();
+            updateStatus();
+            if(turn === AI){
+              setTimeout(aiMove, 300);
             }
           }
-          pushHistory();
-          render();
-          updateStatus();
-        }
-      });
+        };
+      } else {
+        cell.style.cursor = 'default';
+        cell.onclick = null;
+      }
     }
   }
 }
 
 function updateStatus() {
   const statusEl = document.getElementById('status');
-  statusEl.textContent = (turn === BLACK) ? '黒の番です' : '白の番です';
+  if(!hasAnyValidMove(turn)){
+    if(!hasAnyValidMove(-turn)){
+      statusEl.textContent = 'ゲーム終了！';
+      return;
+    }
+    statusEl.textContent = (turn === PLAYER ? 'あなた' : 'AI') + 'はパスしました。';
+    turn = -turn;
+    if(turn === AI){
+      setTimeout(aiMove, 300);
+    }
+    pushHistory();
+    render();
+    return;
+  }
+  statusEl.textContent = (turn === PLAYER ? 'あなた' : 'AI') + 'の番です';
 }
 
 function isValidMove(r,c,color) {
@@ -163,16 +194,47 @@ function flipDiscs(r,c,color) {
   }
 }
 
+function aiMove(){
+  if(!hasAnyValidMove(AI)){
+    turn = PLAYER;
+    updateStatus();
+    return;
+  }
+  // 合法手を全取得
+  const candidates = [];
+  for(let r=0; r<BOARD_SIZE; r++){
+    for(let c=0; c<BOARD_SIZE; c++){
+      if(isValidMove(r,c,AI)){
+        candidates.push([r,c]);
+      }
+    }
+  }
+  if(candidates.length === 0) return;
+  // ランダムで選ぶだけの簡単AI
+  const [r,c] = candidates[Math.floor(Math.random()*candidates.length)];
+  makeMove(r,c,AI);
+  turn = PLAYER;
+  pushHistory();
+  render();
+  updateStatus();
+}
+
 initBoard();
 
-document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('undoBtn').addEventListener('click', () => {
+  undo();
+  if(turn === AI){
+    turn = PLAYER;
+  }
+  updateStatus();
+});
 document.getElementById('passBtn').addEventListener('click', () => {
   if(!hasAnyValidMove(turn)){
     turn = -turn;
-    alert('パスしました。次の人の番です');
-    pushHistory();
-    render();
     updateStatus();
+    if(turn === AI){
+      setTimeout(aiMove, 300);
+    }
   } else {
     alert('置ける場所があります。パスできません。');
   }
