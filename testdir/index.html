@@ -1,250 +1,342 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>スマホ向けオセロゲーム</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>本格風オセロ（Reversi）</title>
 <style>
-  body {
-    margin:0; padding:0;
+  :root{
+    --bg:#0f1724;
+    --panel:#0b1220;
+    --accent:#10b981;
+    --muted:#9aa4b2;
+    --card:#0f1728;
+    --glass: rgba(255,255,255,0.03);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family: Inter, "Helvetica Neue", Hiragino Kaku Gothic ProN, "Noto Sans JP", sans-serif;
+    background: linear-gradient(180deg,#051025 0%, #071127 60%);
+    color:#e6eef6;
+    -webkit-font-smoothing:antialiased;
     display:flex;
-    justify-content:center;
     align-items:center;
-    height:100vh;
-    background: #2e7d32;
-    -webkit-tap-highlight-color: transparent;
+    justify-content:center;
+    padding:20px;
+    gap:20px;
   }
-  #board {
-    display: grid;
-    grid-template-columns: repeat(8, 60px);
-    grid-template-rows: repeat(8, 60px);
-    gap: 2px;
-    background: #1b5e20;
-    border: 4px solid #145214;
-    border-radius: 8px;
-    touch-action: manipulation;
+
+  .app {
+    width:100%;
+    max-width:1100px;
+    display:grid;
+    grid-template-columns: 1fr 360px;
+    gap:20px;
   }
+
+  .board-wrap {
+    background: linear-gradient(180deg,#07202a 0%, #05202a 60%);
+    padding:18px;
+    border-radius:14px;
+    box-shadow: 0 8px 30px rgba(2,8,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+  }
+
+  .board {
+    display:grid;
+    grid-template-columns: repeat(8, minmax(0,1fr));
+    gap:6px;
+    aspect-ratio:1/1;
+    width: min(75vh, 680px);
+    max-width:100%;
+    border-radius:10px;
+    padding:10px;
+    background: linear-gradient(180deg,#092b24 0%, #06322a 100%);
+    box-shadow: inset 0 2px 12px rgba(0,0,0,0.6);
+  }
+
   .cell {
-    width: 60px;
-    height: 60px;
-    background: #4caf50;
-    border-radius: 4px;
-    position: relative;
+    position:relative;
+    background: linear-gradient(180deg,#113a2d 0%, #0a2c22 100%);
+    border-radius:6px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    user-select:none;
+    transition: transform .06s ease;
   }
-  .cell:hover {
-    background: #66bb6a;
-    cursor: pointer;
+  .cell:active{transform:scale(.98)}
+  .cell.disabled{cursor:default; opacity:.95}
+  .disc {
+    width:74%;
+    height:74%;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.45), inset 0 -6px 12px rgba(0,0,0,0.25);
+    transition: transform .18s ease, box-shadow .18s ease;
+    transform-origin:center;
   }
-  .stone {
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    box-shadow: inset 0 2px 5px rgba(255,255,255,0.5),
-                0 2px 4px rgba(0,0,0,0.5);
+  .disc.black { background: radial-gradient(circle at 30% 30%, #0b0b0b, #1b1b1b); }
+  .disc.white { background: radial-gradient(circle at 30% 30%, #fff, #dfe8ee); }
+
+  .hint {
+    position:absolute;
+    right:6px;
+    bottom:6px;
+    background: rgba(255,255,255,0.06);
+    color:var(--muted);
+    font-size:12px;
+    padding:4px 6px;
+    border-radius:6px;
+    pointer-events:none;
   }
-  .black {
-    background: radial-gradient(circle at 30% 30%, #000, #222);
+
+  .cell.valid{
+    outline: 2px dashed rgba(255,255,255,0.06);
+    box-shadow: 0 6px 18px rgba(2,8,23,0.45), inset 0 1px 0 rgba(255,255,255,0.02);
   }
-  .white {
-    background: radial-gradient(circle at 30% 30%, #fff, #ccc);
-    border: 1.5px solid #999;
+  .cell .dot {
+    position:absolute;
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.82);
+    opacity:.95;
+    transform: translateY(-2px);
   }
-  #status {
-    margin-top: 20px;
-    font-size: 18px;
-    font-weight: bold;
-    color: #fff;
-    text-align: center;
-    user-select: none;
+  .controls {
+    background: linear-gradient(180deg,#061224 0%, #071731 100%);
+    padding:18px;
+    border-radius:14px;
+    min-height: 360px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    box-shadow: 0 8px 30px rgba(2,8,23,0.6);
   }
-  #resetBtn {
-    margin-top: 15px;
-    font-size: 16px;
-    padding: 8px 16px;
-    border-radius: 6px;
-    border: none;
-    background: #388e3c;
-    color: white;
-    cursor: pointer;
-    user-select: none;
+  .row{display:flex;gap:8px;align-items:center}
+  .title {
+    font-weight:700;
+    font-size:18px;
+    letter-spacing:.2px;
   }
-  #resetBtn:hover {
-    background: #4caf50;
+  .status {
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .turn {
+    padding:8px 12px;
+    border-radius:999px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .chip {
+    width:18px;height:18px;border-radius:50%;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4), inset 0 -3px 8px rgba(0,0,0,0.2);
+  }
+  .chip.black{background:#0b0b0b}
+  .chip.white{background:linear-gradient(#fff,#dfe8ee)}
+  .score {
+    font-weight:600;
+    color:var(--muted);
+    font-size:13px;
+  }
+
+  .btn {
+    appearance:none;
+    border:0;
+    padding:10px 12px;
+    border-radius:10px;
+    cursor:pointer;
+    background:var(--glass);
+    color:var(--muted);
+    font-weight:600;
+    transition: all .12s ease;
+  }
+  .btn:hover{ transform: translateY(-3px) }
+  .btn.primary{
+    background: linear-gradient(90deg,var(--accent), #06a27b);
+    color:#042017;
+    box-shadow: 0 8px 18px rgba(16,185,129,0.14);
+  }
+
+  .settings { display:flex; flex-direction:column; gap:8px; }
+  .setting-row { display:flex; gap:8px; align-items:center; justify-content:space-between; }
+  select,input[type=range]{background:transparent;color:var(--muted);border-radius:8px;padding:6px 8px;border:1px solid rgba(255,255,255,0.04)}
+  small.muted{color:var(--muted);font-size:12px}
+
+  footer.meta{margin-top:6px;color:var(--muted);font-size:12px}
+  .history {
+    margin-top:8px;
+    display:flex; gap:8px; flex-wrap:wrap;
+  }
+  .move-pill{padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.03);font-size:13px;color:var(--muted);cursor:pointer}
+  .move-pill:hover{background:rgba(255,255,255,0.04)}
+
+  @media (max-width:980px){
+    .app{grid-template-columns: 1fr}
+    .controls{order:2}
   }
 </style>
 </head>
 <body>
+  <div class="app" aria-live="polite">
+    <div class="board-wrap" role="application" aria-label="オセロ盤">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <div class="title">本格風オセロ</div>
+          <div class="muted" style="color:var(--muted);font-size:13px">静的ウェブアプリ — 保存してすぐ遊べます</div>
+        </div>
+        <div class="status">
+          <div class="turn" id="turnIndicator" aria-live="polite">
+            <div class="chip" id="turnChip"></div>
+            <div id="turnText" style="font-weight:700">黒の番</div>
+          </div>
+        </div>
+      </div>
 
-<div>
-  <div id="board"></div>
-  <div id="status">黒のターン</div>
-  <button id="resetBtn">リセット</button>
-</div>
+      <div id="board" class="board" role="grid" aria-label="8x8 のオセロ盤"></div>
+
+      <div style="display:flex;gap:10px;margin-top:12px;align-items:center;justify-content:space-between">
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="score" id="scoreDisplay">黒: 2  白: 2</div>
+          <div style="color:var(--muted);font-size:13px" id="flipCount">—</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="undoBtn">取り消し（Undo）</button>
+          <button class="btn" id="passBtn">パス</button>
+          <button class="btn primary" id="resetBtn">リセット</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="controls" aria-label="コントロールパネル">
+      <div>
+        <div class="title">コントロール</div>
+        <div style="margin-top:8px;color:var(--muted);font-size:13px">対戦モード・AIの強さなどを設定できます</div>
+      </div>
+
+      <div class="settings">
+        <div class="setting-row">
+          <label for="mode">モード</label>
+          <select id="mode" aria-label="プレイヤーモード">
+            <option value="pvp">人対人</option>
+            <option value="pve">人対AI</option>
+            <option value="eve">AI対AI（観戦）</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <label for="aiDepth">AI 強さ</label>
+          <input id="aiDepth" type="range" min="1" max="5" step="1" value="3" aria-label="AIの探索深さ">
+        </div>
+        <div class="setting-row">
+          <label for="hintToggle">合法手の数字表示</label>
+          <input type="checkbox" id="hintToggle" checked aria-label="合法手の表示">
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button class="btn" id="stepAI">AI 一手（観戦時・試し）</button>
+          <button class="btn" id="flipAnimToggle">裏返しアニメON/OFF</button>
+        </div>
+
+        <div style="margin-top:12px">
+          <div style="font-weight:700">履歴</div>
+          <div class="history" id="historyList" aria-live="polite"></div>
+        </div>
+
+        <div style="margin-top:10px;color:var(--muted);font-size:13px">
+          操作: マウスでセルクリック、またはキーボード方向+Enterで置けます。  
+          角を重視する評価、可変深度のAI（アルファベータ）を搭載しています。
+        </div>
+
+      </div>
+
+      <footer class="meta">
+        <div style="margin-top:10px">作成: ChatGPT — オフラインで動作する静的アプリ</div>
+        <div style="margin-top:6px;color:var(--muted)">保存して配布してください（index.html）</div>
+      </footer>
+    </aside>
+  </div>
 
 <script>
-const boardSize = 8;
+/*
+  本格風オセロ実装 (静的フロントエンド)
+  - 盤面は 8x8
+  - 黒: 1, 白: -1, 空: 0
+  - 合法手判定、裏返し、パス、終了判定
+  - Undo（履歴）
+  - AI: ミニマックス + アルファベータ、評価関数 (石差 + 角重視 + 可動手数)
+*/
+
+const BOARD_SIZE = 8;
+const EMPTY = 0;
+const BLACK = 1;
+const WHITE = -1;
+const DIRS = [
+  [-1,-1],[-1,0],[-1,1],
+  [0,-1],       [0,1],
+  [1,-1], [1,0], [1,1]
+];
+
 let board = [];
-let currentPlayer = 'black'; // 黒先手
-const boardElem = document.getElementById('board');
-const statusElem = document.getElementById('status');
+let turn = BLACK;
+let history = []; // {board, turn, move: {r,c} or null}
+let moveList = [];
+let flipAnimation = true;
+
+const boardEl = document.getElementById('board');
+const turnText = document.getElementById('turnText');
+const turnChip = document.getElementById('turnChip');
+const scoreDisplay = document.getElementById('scoreDisplay');
+const flipCountEl = document.getElementById('flipCount');
+const undoBtn = document.getElementById('undoBtn');
 const resetBtn = document.getElementById('resetBtn');
+const passBtn = document.getElementById('passBtn');
+const modeSel = document.getElementById('mode');
+const aiDepthRange = document.getElementById('aiDepth');
+const hintToggle = document.getElementById('hintToggle');
+const historyList = document.getElementById('historyList');
+const stepAI = document.getElementById('stepAI');
+const flipAnimToggle = document.getElementById('flipAnimToggle');
 
-function initBoard() {
-  board = Array(boardSize).fill(null).map(() => Array(boardSize).fill(null));
-  // 初期配置
-  board[3][3] = 'white';
-  board[3][4] = 'black';
-  board[4][3] = 'black';
-  board[4][4] = 'white';
+function cloneBoard(b){
+  return b.map(row=>row.slice());
+}
+function initBoard(){
+  board = Array.from({length:BOARD_SIZE}, ()=>Array(BOARD_SIZE).fill(EMPTY));
+  const mid = BOARD_SIZE/2;
+  board[mid-1][mid-1] = WHITE;
+  board[mid][mid] = WHITE;
+  board[mid-1][mid] = BLACK;
+  board[mid][mid-1] = BLACK;
+  turn = BLACK;
+  history = [];
+  moveList = [];
+  pushHistory(null);
+  render();
 }
 
-function createCellElement(x, y) {
-  const cell = document.createElement('div');
-  cell.classList.add('cell');
-  cell.dataset.x = x;
-  cell.dataset.y = y;
-  cell.addEventListener('click', () => {
-    if(makeMove(x, y)) {
-      switchPlayer();
-      updateBoard();
-      checkGameOver();
-    }
+function pushHistory(move){
+  history.push({
+    board: cloneBoard(board),
+    turn,
+    move
   });
-  return cell;
+  updateHistoryUI();
 }
 
-function drawBoard() {
-  boardElem.innerHTML = '';
-  for(let y=0; y<boardSize; y++){
-    for(let x=0; x<boardSize; x++){
-      const cell = createCellElement(x,y);
-      if(board[y][x]){
-        const stone = document.createElement('div');
-        stone.classList.add('stone');
-        stone.classList.add(board[y][x]);
-        cell.appendChild(stone);
-      }
-      boardElem.appendChild(cell);
-    }
-  }
-}
-
-function onBoard(x, y){
-  return x >= 0 && x < boardSize && y >= 0 && y < boardSize;
-}
-
-// 石を置けるかチェック、置いた場合は反転させる
-function makeMove(x, y) {
-  if(board[y][x] !== null) return false;
-  const flips = getFlips(x, y, currentPlayer);
-  if(flips.length === 0) return false;
-  board[y][x] = currentPlayer;
-  flips.forEach(([fx, fy]) => {
-    board[fy][fx] = currentPlayer;
-  });
-  return true;
-}
-
-// 反転可能な石の座標一覧を取得
-function getFlips(x, y, color) {
-  const opponent = (color === 'black') ? 'white' : 'black';
-  const directions = [
-    [1,0], [-1,0], [0,1], [0,-1],
-    [1,1], [-1,-1], [1,-1], [-1,1]
-  ];
-  let flips = [];
-  for(const [dx, dy] of directions){
-    let nx = x + dx;
-    let ny = y + dy;
-    let line = [];
-    while(onBoard(nx, ny) && board[ny][nx] === opponent){
-      line.push([nx, ny]);
-      nx += dx; ny += dy;
-    }
-    if(onBoard(nx, ny) && board[ny][nx] === color && line.length > 0){
-      flips = flips.concat(line);
-    }
-  }
-  return flips;
-}
-
-function switchPlayer(){
-  currentPlayer = (currentPlayer === 'black') ? 'white' : 'black';
-  if(!canPlayerMove(currentPlayer)){
-    // 相手が打てないならパスして元に戻す
-    if(!canPlayerMove(opponent(currentPlayer))){
-      // どちらも打てなければ終了判定
-      currentPlayer = null;
-    } else {
-      currentPlayer = opponent(currentPlayer);
-      alert('相手は打てないためパスしました');
-    }
-  }
-  updateStatus();
-}
-
-function opponent(color){
-  return color === 'black' ? 'white' : 'black';
-}
-
-function canPlayerMove(color){
-  for(let y=0; y<boardSize; y++){
-    for(let x=0; x<boardSize; x++){
-      if(board[y][x] === null){
-        if(getFlips(x,y,color).length > 0) return true;
-      }
-    }
-  }
-  return false;
-}
-
-function updateBoard(){
-  drawBoard();
-}
-
-function updateStatus(){
-  if(currentPlayer === null){
-    const blackCount = countStones('black');
-    const whiteCount = countStones('white');
-    if(blackCount > whiteCount) statusElem.textContent = `黒の勝ち！ ${blackCount} : ${whiteCount}`;
-    else if(whiteCount > blackCount) statusElem.textContent = `白の勝ち！ ${whiteCount} : ${blackCount}`;
-    else statusElem.textContent = `引き分け！ ${blackCount} : ${whiteCount}`;
-  } else {
-    statusElem.textContent = `${currentPlayer === 'black' ? '黒' : '白'}のターン`;
-  }
-}
-
-function countStones(color){
-  let cnt = 0;
-  for(let y=0; y<boardSize; y++){
-    for(let x=0; x<boardSize; x++){
-      if(board[y][x] === color) cnt++;
-    }
-  }
-  return cnt;
-}
-
-function checkGameOver(){
-  if(currentPlayer === null){
-    alert('ゲーム終了です！リセットボタンで再スタートできます。');
-  }
-}
-
-resetBtn.addEventListener('click', () => {
-  initBoard();
-  currentPlayer = 'black';
-  updateBoard();
-  updateStatus();
-});
-
-// 初期化
-initBoard();
-updateBoard();
-updateStatus();
-</script>
-
-</body>
-</html>
+function updateHistoryUI(){
+  historyList.innerHTML = '';
+  for(let i=1;i<history.length;i++){
+    const mv = history[i].move;
+    const txt = mv ? `${i}. ${String.fromCharCode(65+mv.c)}${mv.r+1}` : `${i}. pass`;
+    const 
