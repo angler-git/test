@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>改良版ルーレット</title>
+<title>自動文字縮小ルーレット</title>
 <style>
 body {
     font-family: sans-serif;
@@ -51,7 +51,7 @@ canvas {
 </head>
 <body>
 
-<h1>改良版 円形ルーレット</h1>
+<h1>自動文字縮小ルーレット</h1>
 
 <div id="input-area">
     <input type="text" id="item-input" placeholder="項目を入力">
@@ -124,6 +124,8 @@ function drawWheel() {
     }
 
     const arc = 2 * Math.PI / num;
+    const textMaxWidth = radius * 0.9; // テキスト最大幅（円の直径の9割）
+
     for(let i=0; i<num; i++) {
         const startAngle = angle + i * arc;
         ctx.beginPath();
@@ -133,24 +135,33 @@ function drawWheel() {
         ctx.closePath();
         ctx.fill();
 
-        // 項目名を常に上向きに
+        // 項目名表示（枠内中央）
         ctx.save();
         ctx.translate(radius, radius);
         ctx.rotate(startAngle + arc / 2);
-        ctx.rotate(-angle - arc / 2); // 回転を打ち消して上向き
+        ctx.rotate(-angle - arc / 2); // 上向き補正
         ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
         ctx.fillStyle = "#000";
-        ctx.font = "16px sans-serif";
-        ctx.fillText(items[i], 0, -radius + 40);
+
+        // 文字サイズ自動調整
+        let fontSize = 16;
+        ctx.font = `${fontSize}px sans-serif`;
+        while (ctx.measureText(items[i]).width > textMaxWidth * 0.6 && fontSize > 10) {
+            fontSize -= 1;
+            ctx.font = `${fontSize}px sans-serif`;
+        }
+
+        ctx.fillText(items[i], 0, -radius * 0.6);
         ctx.restore();
     }
 
-    // 針（尖らせる）
+    // 針
     ctx.fillStyle = "red";
     ctx.beginPath();
-    ctx.moveTo(radius, 0); // 上中央
-    ctx.lineTo(radius - 15, 20);
-    ctx.lineTo(radius + 15, 20);
+    ctx.moveTo(radius, 5); 
+    ctx.lineTo(radius - 15, 25);
+    ctx.lineTo(radius + 15, 25);
     ctx.closePath();
     ctx.fill();
 }
@@ -181,8 +192,8 @@ document.getElementById("start").addEventListener("click", () => {
         alert("項目を追加してください");
         return;
     }
-    spinVelocity = Math.random() * 0.3 + 0.25; // 初速度
-    spinDeceleration = 0.985; // 減速率
+    spinVelocity = Math.random() * 0.3 + 0.25;
+    spinDeceleration = 0.985;
     spinning = true;
 });
 
