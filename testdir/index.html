@@ -2,127 +2,190 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ミニゲーム集</title>
+<title>円形ルーレット</title>
 <style>
 body {
-  font-family: sans-serif;
-  text-align: center;
-  margin: 0;
-  background: #f0f0f0;
+    font-family: sans-serif;
+    text-align: center;
+    background: #f4f4f4;
 }
-h1 { font-size: 1.5em; margin: 20px 0; }
-.menu, .game {
-  display: none;
-  padding: 10px;
+h1 {
+    margin-top: 20px;
 }
-.menu.active, .game.active {
-  display: block;
+#input-area {
+    margin: 10px;
+}
+#item-input {
+    padding: 5px;
+    width: 200px;
 }
 button {
-  font-size: 1.2em;
-  padding: 10px;
-  margin: 10px;
-  width: 80%;
-  max-width: 300px;
+    padding: 8px 12px;
+    margin: 5px;
+    cursor: pointer;
+}
+#items-list {
+    list-style: none;
+    padding: 0;
+}
+#items-list li {
+    background: #fff;
+    border: 1px solid #ccc;
+    margin: 3px auto;
+    padding: 3px;
+    width: 220px;
+    display: flex;
+    justify-content: space-between;
 }
 canvas {
-  background: #fff;
-  display: block;
-  margin: 0 auto;
-  border: 1px solid #000;
+    background: #fff;
+    margin-top: 20px;
+    border-radius: 50%;
+}
+#result {
+    margin-top: 20px;
+    font-size: 1.3em;
+    font-weight: bold;
 }
 </style>
 </head>
 <body>
 
-<div id="menu" class="menu active">
-  <h1>ミニゲームメニュー</h1>
-  <button onclick="showGame('othello')">オセロ</button>
-  <button onclick="showGame('tetris')">テトリス</button>
-  <button onclick="showGame('mario')">マリオ風</button>
-  <button onclick="showGame('fishing')">釣りゲーム</button>
+<h1>円形ルーレット</h1>
+
+<div id="input-area">
+    <input type="text" id="item-input" placeholder="項目を入力">
+    <button id="add-item">追加</button>
 </div>
 
-<div id="othello" class="game">
-  <h1>オセロ（簡易版）</h1>
-  <canvas id="othelloCanvas" width="320" height="320"></canvas>
-  <button onclick="backToMenu()">戻る</button>
-</div>
+<ul id="items-list"></ul>
 
-<div id="tetris" class="game">
-  <h1>テトリス（簡易版）</h1>
-  <canvas id="tetrisCanvas" width="200" height="400"></canvas>
-  <button onclick="backToMenu()">戻る</button>
-</div>
+<canvas id="wheel" width="400" height="400"></canvas>
+<br>
+<button id="start">スタート</button>
 
-<div id="mario" class="game">
-  <h1>マリオ風（簡易版）</h1>
-  <canvas id="marioCanvas" width="320" height="240"></canvas>
-  <button onclick="backToMenu()">戻る</button>
-</div>
-
-<div id="fishing" class="game">
-  <h1>釣りゲーム（簡易版）</h1>
-  <canvas id="fishingCanvas" width="320" height="240"></canvas>
-  <button onclick="backToMenu()">戻る</button>
-</div>
+<div id="result"></div>
 
 <script>
-// メニュー切替
-function showGame(id) {
-  document.querySelectorAll('.menu, .game').forEach(e => e.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  if (id === "othello") initOthello();
-  if (id === "tetris") initTetris();
-  if (id === "mario") initMario();
-  if (id === "fishing") initFishing();
-}
-function backToMenu() {
-  document.querySelectorAll('.menu, .game').forEach(e => e.classList.remove('active'));
-  document.getElementById('menu').classList.add('active');
-}
+const items = [];
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+const result = document.getElementById("result");
 
-// --- オセロ簡易版 ---
-function initOthello() {
-  let ctx = document.getElementById('othelloCanvas').getContext('2d');
-  ctx.clearRect(0,0,320,320);
-  for(let i=0;i<8;i++){
-    for(let j=0;j<8;j++){
-      ctx.fillStyle = '#0a0';
-      ctx.fillRect(i*40,j*40,40,40);
-      ctx.strokeRect(i*40,j*40,40,40);
+let angle = 0;
+let spinning = false;
+let spinVelocity = 0;
+let spinDeceleration = 0;
+
+document.getElementById("add-item").addEventListener("click", () => {
+    const val = document.getElementById("item-input").value.trim();
+    if(val) {
+        items.push(val);
+        renderItems();
+        document.getElementById("item-input").value = '';
+        drawWheel();
     }
-  }
-  ctx.beginPath(); ctx.arc(160,160,15,0,Math.PI*2); ctx.fillStyle="black"; ctx.fill();
-  ctx.beginPath(); ctx.arc(200,160,15,0,Math.PI*2); ctx.fillStyle="white"; ctx.fill();
+});
+
+function renderItems() {
+    const list = document.getElementById("items-list");
+    list.innerHTML = '';
+    items.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        const del = document.createElement('button');
+        del.textContent = "削除";
+        del.onclick = () => {
+            items.splice(index,1);
+            renderItems();
+            drawWheel();
+        };
+        li.appendChild(del);
+        list.appendChild(li);
+    });
 }
 
-// --- テトリス簡易版 ---
-function initTetris() {
-  let ctx = document.getElementById('tetrisCanvas').getContext('2d');
-  ctx.clearRect(0,0,200,400);
-  ctx.fillStyle = 'blue';
-  ctx.fillRect(80,0,40,40);
+function drawWheel() {
+    const num = items.length;
+    const radius = canvas.width / 2;
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+
+    if(num === 0) {
+        ctx.fillStyle = "#ccc";
+        ctx.beginPath();
+        ctx.arc(radius, radius, radius, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = "#000";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "20px sans-serif";
+        ctx.fillText("項目を追加", radius, radius);
+        return;
+    }
+
+    const arc = 2 * Math.PI / num;
+    for(let i=0; i<num; i++) {
+        const startAngle = angle + i * arc;
+        ctx.beginPath();
+        ctx.fillStyle = i % 2 === 0 ? "#fdd835" : "#ff7043";
+        ctx.moveTo(radius, radius);
+        ctx.arc(radius, radius, radius, startAngle, startAngle + arc);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.save();
+        ctx.translate(radius, radius);
+        ctx.rotate(startAngle + arc / 2);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#000";
+        ctx.font = "16px sans-serif";
+        ctx.fillText(items[i], radius - 10, 5);
+        ctx.restore();
+    }
+
+    // 針
+    ctx.fillStyle = "red";
+    ctx.beginPath();
+    ctx.moveTo(radius, radius - radius - 10);
+    ctx.lineTo(radius - 10, radius - radius + 20);
+    ctx.lineTo(radius + 10, radius - radius + 20);
+    ctx.closePath();
+    ctx.fill();
 }
 
-// --- マリオ風簡易版 ---
-function initMario() {
-  let ctx = document.getElementById('marioCanvas').getContext('2d');
-  ctx.clearRect(0,0,320,240);
-  ctx.fillStyle = 'skyblue'; ctx.fillRect(0,0,320,240);
-  ctx.fillStyle = 'green'; ctx.fillRect(0,200,320,40);
-  ctx.fillStyle = 'red'; ctx.fillRect(50,160,20,40);
+function animate() {
+    if(spinning) {
+        angle += spinVelocity;
+        spinVelocity *= spinDeceleration;
+        if(spinVelocity < 0.002) {
+            spinning = false;
+            declareResult();
+        }
+    }
+    drawWheel();
+    requestAnimationFrame(animate);
 }
 
-// --- 釣りゲーム簡易版 ---
-function initFishing() {
-  let ctx = document.getElementById('fishingCanvas').getContext('2d');
-  ctx.clearRect(0,0,320,240);
-  ctx.fillStyle = 'lightblue'; ctx.fillRect(0,0,320,240);
-  ctx.fillStyle = 'brown'; ctx.fillRect(150,100,5,100);
-  ctx.fillStyle = 'orange'; ctx.beginPath(); ctx.arc(200,180,10,0,Math.PI*2); ctx.fill();
+function declareResult() {
+    const num = items.length;
+    const arc = 2 * Math.PI / num;
+    const currentAngle = (2 * Math.PI - (angle % (2 * Math.PI))) % (2 * Math.PI);
+    const index = Math.floor(currentAngle / arc);
+    result.textContent = `結果: ${items[index]}`;
 }
+
+document.getElementById("start").addEventListener("click", () => {
+    if(items.length === 0) {
+        alert("項目を追加してください");
+        return;
+    }
+    spinVelocity = Math.random() * 0.3 + 0.25; // 初速度
+    spinDeceleration = 0.98; // 減速率
+    spinning = true;
+});
+
+drawWheel();
+animate();
 </script>
 
 </body>
