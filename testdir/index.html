@@ -1,25 +1,20 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ルーレット</title>
 <style>
-body {
-  margin:0; padding:18px;
-  font-family:system-ui,sans-serif;
-  display:flex; flex-direction:column; align-items:center; gap:12px;
-  background:#f5f5f7;
-}
-h1 { margin:0 0 4px; font-size:18px; font-weight:700; }
-#wrap { position:relative; width:90vw; max-width:520px; }
-canvas { width:100%; height:auto; background:#fff; border-radius:50%; box-shadow:0 8px 24px rgba(0,0,0,.08), inset 0 0 0 2px #eee; display:block; }
-.controls { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; align-items:center; }
-.controls input { padding:8px 10px; width:220px; max-width:70vw; }
-.controls button { padding:8px 12px; cursor:pointer; }
-ul { list-style:none; padding:0; margin:8px 0 0; width:100%; max-width:420px; }
-li { display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid #e5e5e5; margin:4px 0; padding:6px 8px; }
-#result { font-weight:700; margin-top:4px; }
+body {margin:0;padding:18px;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;gap:12px;background:#f5f5f7;}
+h1 {margin:0 0 4px;font-size:18px;font-weight:700;}
+#wrap {position:relative;width:90vw;max-width:520px;}
+canvas {width:100%;height:auto;background:#fff;border-radius:50%;box-shadow:0 8px 24px rgba(0,0,0,.08), inset 0 0 0 2px #eee;display:block;}
+.controls {display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;}
+.controls input {padding:8px 10px;width:220px;max-width:70vw;}
+.controls button {padding:8px 12px;cursor:pointer;}
+ul {list-style:none;padding:0;margin:8px 0 0;width:100%;max-width:420px;}
+li {display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid #e5e5e5;margin:4px 0;padding:6px 8px;}
+#result {font-weight:700;margin-top:8px;font-size:18px;color:crimson;}
 </style>
 </head>
 <body>
@@ -28,7 +23,7 @@ li { display:flex; justify-content:space-between; align-items:center; background
   <canvas id="wheel" aria-label="ルーレット"></canvas>
 </div>
 <div class="controls">
-  <input type="text" id="itemInput" placeholder="項目名（Enterで追加）" />
+  <input type="text" id="itemInput" placeholder="項目名（Enterで追加）">
   <button id="addBtn">追加</button>
   <button id="startBtn" disabled>スタート</button>
   <button id="clearBtn">全削除</button>
@@ -40,9 +35,7 @@ li { display:flex; justify-content:space-between; align-items:center; background
 (() => {
 const canvas = document.getElementById('wheel');
 const ctx = canvas.getContext('2d');
-
 const state = { items:[], angle:0, vel:0, spinning:false, decel:0.985 };
-
 const itemInput = document.getElementById('itemInput');
 const addBtn = document.getElementById('addBtn');
 const startBtn = document.getElementById('startBtn');
@@ -50,7 +43,6 @@ const clearBtn = document.getElementById('clearBtn');
 const listEl = document.getElementById('list');
 const resultEl = document.getElementById('result');
 
-// Canvasサイズを表示サイズに合わせる
 function resizeCanvas(){
   const w = canvas.clientWidth;
   canvas.width = w;
@@ -59,12 +51,9 @@ function resizeCanvas(){
 window.addEventListener('resize',()=>{ resizeCanvas(); drawWheel(); });
 resizeCanvas();
 
-// 色取得
-const colorAt = (i,n) => `hsl(${(i*360/Math.max(n,1))%360},75%,62%)`;
+const colorAt = (i,n)=>`hsl(${(i*360/Math.max(n,1))%360},75%,62%)`;
 
-// 針
 function drawNeedle(R){
-  const apexY = R - R + 8; // 上端
   ctx.beginPath();
   ctx.moveTo(R,8);
   ctx.lineTo(R-14,30);
@@ -77,26 +66,34 @@ function drawNeedle(R){
   ctx.fill();
 }
 
-// 文字レイアウト
-function layoutText(text,maxWidth,maxFont=18,minFont=10){
-  for(let f=maxFont;f>=minFont;f--){
-    ctx.font=`${f}px sans-serif`;
-    if(ctx.measureText(text).width<=maxWidth) return {font:f, lines:[text], lh:f*1.15};
+// 文字をセグメント内に収める
+function drawTextInSegment(text,maxWidth){
+  const maxFont = 20;
+  const minFont = 10;
+  let fontSize = maxFont;
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  let lines=[text];
+  while(fontSize>=minFont){
+    ctx.font=`${fontSize}px sans-serif`;
+    if(ctx.measureText(text).width<=maxWidth){ lines=[text]; break; }
+    fontSize--;
   }
-  // 2行分割
-  const mid = Math.floor(text.length/2);
-  const a=text.slice(0,mid),b=text.slice(mid);
-  let font = minFont;
-  ctx.font=`${font}px sans-serif`;
-  return {font,lines:[a,b], lh:font*1.15};
+  if(fontSize<minFont){
+    fontSize=minFont;
+    // 2行に分割
+    const mid=Math.floor(text.length/2);
+    lines=[text.slice(0,mid), text.slice(mid)];
+  }
+  return { fontSize, lines };
 }
 
-// ホイール描画
 function drawWheel(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const SIZE = canvas.width;
   const R = SIZE/2;
   const C = {x:R,y:R};
+
   if(state.items.length===0){
     ctx.beginPath();
     ctx.arc(C.x,C.y,R,0,2*Math.PI);
@@ -106,15 +103,15 @@ function drawWheel(){
     drawNeedle(R);
     ctx.font='16px sans-serif';
     ctx.fillStyle='#666';
-    ctx.textAlign='center';
-    ctx.textBaseline='middle';
     ctx.fillText('項目を追加してください',C.x,C.y);
     return;
   }
-  const n=state.items.length;
+
+  const n = state.items.length;
   const arc = 2*Math.PI/n;
   const textR = R*0.62;
-  const maxChord = 2*textR*Math.tan(arc/2)*0.9;
+  const maxChord = 2*textR*Math.sin(arc/2)*0.9;
+
   for(let i=0;i<n;i++){
     const start = state.angle + i*arc;
     const end = start + arc;
@@ -125,25 +122,27 @@ function drawWheel(){
     ctx.fillStyle=colorAt(i,n);
     ctx.fill();
     ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.stroke();
+
     const mid = start+arc/2;
-    const layout = layoutText(state.items[i], maxChord);
+    const layout = drawTextInSegment(state.items[i], maxChord);
+
     ctx.save();
     ctx.translate(C.x,C.y);
     ctx.rotate(mid);
     ctx.translate(0,-textR);
     ctx.rotate(-mid);
-    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font=`${layout.fontSize}px sans-serif`;
     ctx.fillStyle='#111';
-    ctx.font=`${layout.font}px sans-serif`;
     if(layout.lines.length===1){
       ctx.fillText(layout.lines[0],0,0);
-    }else{
-      ctx.fillText(layout.lines[0],0,-layout.lh/2);
-      ctx.fillText(layout.lines[1],0,layout.lh/2);
+    } else {
+      ctx.fillText(layout.lines[0],0,-layout.fontSize/1.5);
+      ctx.fillText(layout.lines[1],0,layout.fontSize/1.5);
     }
     ctx.restore();
   }
-  // 中心
+
+  // 中心キャップ
   ctx.beginPath();
   ctx.arc(C.x,C.y,R*0.06,0,2*Math.PI);
   ctx.fillStyle='#fff'; ctx.fill();
@@ -151,18 +150,16 @@ function drawWheel(){
   drawNeedle(R);
 }
 
-// 結果
 function announceResult(){
-  if(!state.items.length) return;
-  const n = state.items.length;
+  if(state.items.length===0) return;
+  const n=state.items.length;
   const arc = 2*Math.PI/n;
   let a = state.angle % (2*Math.PI); if(a<0) a+=2*Math.PI;
-  const fromTop = (2*Math.PI-a)% (2*Math.PI);
+  const fromTop = (2*Math.PI - a) % (2*Math.PI);
   const idx = Math.floor(fromTop/arc)%n;
-  resultEl.textContent=`結果：${state.items[idx]}`;
+  resultEl.textContent = `結果：${state.items[idx]}`;
 }
 
-// アニメ
 function tick(){
   if(state.spinning){
     state.angle += state.vel;
@@ -173,7 +170,6 @@ function tick(){
   requestAnimationFrame(tick);
 }
 
-// リスト更新
 function renderList(){
   listEl.innerHTML='';
   state.items.forEach((t,i)=>{
@@ -187,9 +183,8 @@ function renderList(){
   drawWheel();
 }
 
-// イベント
 addBtn.addEventListener('click',()=>{
-  const v = itemInput.value.trim(); if(!v) return;
+  const v=itemInput.value.trim(); if(!v) return;
   state.items.push(v); itemInput.value=''; renderList();
 });
 itemInput.addEventListener('keydown',e=>{ if(e.key==='Enter') addBtn.click(); });
