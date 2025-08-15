@@ -1,63 +1,45 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ルーレット</title>
-<style>
-  :root { --size: 480px; }
-  body {
-    margin: 0; padding: 24px;
-    background: #f5f5f7; font-family: system-ui, sans-serif; text-align: center;
-  }
-  h1 { margin: 0 0 12px; font-size: 20px; }
-  #wrap { display: inline-block; position: relative; }
-  canvas {
-    width: var(--size); height: var(--size);
-    max-width: 92vw; max-height: 92vw;
-    background: #fff; border-radius: 50%;
-    box-shadow: 0 8px 28px rgba(0,0,0,.08), inset 0 0 0 2px #eee;
-  }
-  /* 針（円の内側に収める：上辺の内側から円の中心に向けて尖る） */
-  .needle {
-    position: absolute; left: 50%;
-    transform: translateX(-50%);
-    pointer-events: none;
-  }
-  /* 入出力 */
-  .controls { margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-  input[type="text"] { padding: 8px 10px; width: 220px; }
-  button { padding: 8px 12px; cursor: pointer; }
-  ul { list-style: none; padding: 0; margin: 10px auto; max-width: 360px; }
-  li {
-    display: flex; justify-content: space-between; align-items: center;
-    background: #fff; border: 1px solid #e5e5e5; margin: 4px 0; padding: 6px 8px;
-  }
-  #result { margin-top: 10px; font-weight: 700; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ルーレット</title>
+  <style>
+    :root { --size: 480px; }
+    body {
+      margin: 0; padding: 24px;
+      background: #f5f5f7; font-family: system-ui, sans-serif; text-align: center;
+    }
+    h1 { margin: 0 0 12px; font-size: 20px; }
+    #wrap { display: inline-block; position: relative; }
+    canvas {
+      width: var(--size); height: var(--size);
+      max-width: 92vw; max-height: 92vw;
+      background: #fff; border-radius: 50%;
+      box-shadow: 0 8px 28px rgba(0,0,0,.08), inset 0 0 0 2px #eee;
+    }
+    .controls { margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    input[type="text"] { padding: 8px 10px; width: 220px; }
+    button { padding: 8px 12px; cursor: pointer; }
+    ul { list-style: none; padding: 0; margin: 10px auto; max-width: 360px; }
+    li {
+      display: flex; justify-content: space-between; align-items: center;
+      background: #fff; border: 1px solid #e5e5e5; margin: 4px 0; padding: 6px 8px;
+    }
+    #result { margin-top: 10px; font-weight: 700; }
+  </style>
 </head>
 <body>
   <h1>ルーレット</h1>
-
   <div id="wrap">
     <canvas id="wheel" width="600" height="600" aria-label="ルーレット"></canvas>
-
-    <!-- 針（円の内側）※Canvasにも描画しますが、視覚的に分かりやすいよう重ね表示 -->
-    <svg class="needle" id="needleSvg" width="40" height="40"
-         viewBox="0 0 40 40" aria-hidden="true">
-      <!-- 上辺内側 y=2 を先端として円の中心方向（下向き）に尖る -->
-      <polygon points="20,2 6,22 34,22" fill="crimson" />
-      <circle cx="20" cy="22" r="3" fill="crimson" />
-    </svg>
   </div>
-
   <div class="controls">
     <input type="text" id="itemInput" placeholder="項目名">
     <button id="addBtn">追加</button>
-    <button id="startBtn">スタート</button>
+    <button id="startBtn" disabled>スタート</button>
     <button id="clearBtn">全削除</button>
   </div>
-
   <ul id="list"></ul>
   <div id="result"></div>
 
@@ -65,65 +47,38 @@
 (() => {
   const canvas = document.getElementById('wheel');
   const ctx = canvas.getContext('2d');
-  const size = canvas.width;              // 600
-  const R = size / 2;                     // 半径 300
+  const size = canvas.width;
+  const R = size / 2;
   const center = { x: R, y: R };
 
-  // --- 状態 ---
-  let items = [];                         // ★デフォルト空（値が入らない）
-  let angle = 0;                          // 現在角
-  let spinning = false;
-  let vel = 0;                            // 角速度
-  let decel = 0.985;                      // 減速率
+  let items = [];
+  let angle = 0, vel = 0, spinning = false;
+  const dec = 0.985;
 
-  // UI
   const itemInput = document.getElementById('itemInput');
-  const addBtn    = document.getElementById('addBtn');
-  const startBtn  = document.getElementById('startBtn');
-  const clearBtn  = document.getElementById('clearBtn');
-  const listEl    = document.getElementById('list');
-  const resultEl  = document.getElementById('result');
-  const needleSvg = document.getElementById('needleSvg');
+  const addBtn = document.getElementById('addBtn');
+  const startBtn = document.getElementById('startBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const listEl = document.getElementById('list');
+  const resultEl = document.getElementById('result');
 
-  // 針SVGの位置をキャンバスに合わせて内側上辺に配置
-  function layoutNeedle() {
-    const wrapRect = document.getElementById('wrap').getBoundingClientRect();
-    const canvasRect = canvas.getBoundingClientRect();
-    const scale = canvasRect.width / size;         // CSS縮尺
-    const needleW = 40 * scale;
-    const needleH = 40 * scale;
+  const colorAt = (i, n) => `hsl(${(i * 360 / n) % 360}, 75%, 62%)`;
 
-    needleSvg.style.width  = `${needleW}px`;
-    needleSvg.style.height = `${needleH}px`;
-    // 上辺の内側（わずかに内側へオフセット）
-    const top = canvasRect.top + 2;                // 2px 内側
-    const left = canvasRect.left + canvasRect.width / 2 - needleW / 2;
-    needleSvg.style.top = `${top}px`;
-    needleSvg.style.left = `${left}px`;
-  }
-
-  // 便利：HSLの均等配色
-  const colorAt = (i, n) => `hsl(${(i*360/n) % 360}, 75%, 62%)`;
-
-  // テキストをセグメント内に「必ず収める」：幅チェック→縮小→必要なら省略
-  function drawFittedText(text, maxWidth, minFont=10, maxFont=18) {
-    let font = maxFont;
+  function drawFittedText(text, maxWidth, minFont = 10, maxFont = 18) {
+    let f = maxFont;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#111';
 
-    // フォントサイズ調整
-    while (font >= minFont) {
-      ctx.font = `${font}px system-ui, sans-serif`;
-      const w = ctx.measureText(text).width;
-      if (w <= maxWidth) break;
-      font -= 1;
+    while (f >= minFont) {
+      ctx.font = `${f}px sans-serif`;
+      if (ctx.measureText(text).width <= maxWidth) break;
+      f--;
     }
-    if (font < minFont) {
-      font = minFont;
-      ctx.font = `${font}px system-ui, sans-serif`;
-      // エリプシスで幅に収める
-      while (ctx.measureText(text + '…').width > maxWidth && text.length > 0) {
+    if (f < minFont) {
+      f = minFont;
+      ctx.font = `${f}px sans-serif`;
+      while (ctx.measureText(text + '…').width > maxWidth && text.length) {
         text = text.slice(0, -1);
       }
       text = text.length ? text + '…' : '…';
@@ -131,24 +86,36 @@
     ctx.fillText(text, 0, 0);
   }
 
-  // ルーレット描画
+  function drawInnerNeedle() {
+    const apexY = center.y - R + 8;
+    ctx.beginPath();
+    ctx.moveTo(center.x, apexY);
+    ctx.lineTo(center.x - 14, apexY + 22);
+    ctx.lineTo(center.x + 14, apexY + 22);
+    ctx.closePath();
+    ctx.fillStyle = 'crimson';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(center.x, apexY + 22, 3, 0, Math.PI * 2);
+    ctx.fillStyle = 'crimson';
+    ctx.fill();
+  }
+
   function drawWheel() {
     ctx.clearRect(0, 0, size, size);
 
-    // 空時の表示
-    if (items.length === 0) {
+    if (!items.length) {
       ctx.beginPath();
-      ctx.arc(center.x, center.y, R, 0, Math.PI*2);
+      ctx.arc(center.x, center.y, R, 0, Math.PI * 2);
       ctx.fillStyle = '#fafafa';
       ctx.fill();
       ctx.strokeStyle = '#e5e5e5';
       ctx.lineWidth = 2;
       ctx.stroke();
-
-      // 針（キャンバス内にもガイドとして描画：上内側から中心向き）
       drawInnerNeedle();
+      ctx.font = '16px sans-serif';
       ctx.fillStyle = '#666';
-      ctx.font = '16px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('項目を追加してください', center.x, center.y);
@@ -157,115 +124,69 @@
 
     const n = items.length;
     const arc = Math.PI * 2 / n;
-    const textRadius = R * 0.62; // テキストの半径位置（内側）
-    // セグメントの最大テキスト幅（弧ではなく chord(弦) 幅を基準）
-    const chordWidth = 2 * textRadius * Math.tan(arc/2) * 0.9; // 余白10%
+    const textR = R * 0.62;
+    const chord = 2 * textR * Math.tan(arc / 2) * 0.9;
 
-    // セグメント
     for (let i = 0; i < n; i++) {
-      const start = angle + i*arc;
-      const end   = start + arc;
-
-      // 扇形
+      const start = angle + i * arc;
+      const end = start + arc;
       ctx.beginPath();
       ctx.moveTo(center.x, center.y);
       ctx.arc(center.x, center.y, R, start, end);
       ctx.closePath();
       ctx.fillStyle = colorAt(i, n);
       ctx.fill();
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = '#fff';
       ctx.lineWidth = 1.2;
       ctx.stroke();
 
-      // クリップ（テキストがはみ出さない保証）
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(center.x, center.y);
-      ctx.arc(center.x, center.y, R-4, start, end); // -4で内側に少し余白
+      ctx.arc(center.x, center.y, R - 4, start, end);
       ctx.closePath();
       ctx.clip();
 
-      // テキスト：位置=扇の中心線上の内側、向き=常に上向き（画面に対して）
-      const mid = start + arc/2;
-
-      // 1) 扇の中心線方向に回転
+      const mid = start + arc / 2;
       ctx.translate(center.x, center.y);
       ctx.rotate(mid);
-
-      // 2) その方向にテキスト座標を移動
-      ctx.translate(0, -textRadius);
-
-      // 3) テキストは上向きに固定するため回転を打ち消す
+      ctx.translate(0, -textR);
       ctx.rotate(-mid);
-
-      // 4) そこでテキストを幅制約付きで描画
-      drawFittedText(items[i], chordWidth, 10, 18);
-
+      drawFittedText(items[i], chord);
       ctx.restore();
     }
 
-    // 中心キャップ
     ctx.beginPath();
-    ctx.arc(center.x, center.y, R*0.06, 0, Math.PI*2);
+    ctx.arc(center.x, center.y, R * 0.06, 0, Math.PI * 2);
     ctx.fillStyle = '#fff';
     ctx.fill();
     ctx.strokeStyle = '#ddd';
     ctx.stroke();
 
-    // 針（キャンバス側ガイドも内側に）
     drawInnerNeedle();
   }
 
-  // キャンバス内の針（上辺内側から下向き＝円の中心へ）
-  function drawInnerNeedle() {
-    const apexY = center.y - R + 8; // 円の内側に8px
-    ctx.beginPath();
-    ctx.moveTo(center.x, apexY);           // 先端（内側）
-    ctx.lineTo(center.x - 14, apexY + 22); // 左
-    ctx.lineTo(center.x + 14, apexY + 22); // 右
-    ctx.closePath();
-    ctx.fillStyle = 'crimson';
-    ctx.fill();
-
-    // 小さな丸キャップ
-    ctx.beginPath();
-    ctx.arc(center.x, apexY + 22, 3, 0, Math.PI*2);
-    ctx.fillStyle = 'crimson';
-    ctx.fill();
+  function announceResult() {
+    if (!items.length) return;
+    const n = items.length;
+    const arc = Math.PI * 2 / n;
+    let a = angle % (Math.PI * 2);
+    if (a < 0) a += Math.PI * 2;
+    const fromTop = (Math.PI * 2 - a) % (Math.PI * 2);
+    const idx = Math.floor(fromTop / arc) % n;
+    resultEl.textContent = `結果：${items[idx]}`;
   }
 
-  // アニメーション
   function tick() {
     if (spinning) {
       angle += vel;
-      vel *= decel;
-      if (vel < 0.002) { // 停止
-        spinning = false;
-        announceResult();
-      }
+      vel *= dec;
+      if (vel < 0.002) { spinning = false; announceResult(); }
     }
     drawWheel();
     requestAnimationFrame(tick);
   }
 
-  // 針（12時方向）で指したインデックスを計算して表示
-  function announceResult() {
-    const n = items.length;
-    if (n === 0) return;
-    const arc = Math.PI * 2 / n;
-
-    // 針は上（12時）。角度0を右→にせず「上基準」に合わせるため調整：
-    // currentAngle = 針から見た現在の回転量（反時計で増える前提）
-    let a = angle % (Math.PI * 2);
-    if (a < 0) a += Math.PI * 2;
-    // 上(12時)基準にするため 0 を上に合わせる
-    const fromTop = (Math.PI*2 - a) % (Math.PI*2);
-    const index = Math.floor(fromTop / arc) % n;
-
-    resultEl.textContent = `結果：${items[index]}`;
-  }
-
-  // --- アイテム管理 ---
   function renderList() {
     listEl.innerHTML = '';
     items.forEach((t, i) => {
@@ -274,16 +195,14 @@
       span.textContent = t;
       const del = document.createElement('button');
       del.textContent = '削除';
-      del.onclick = () => { items.splice(i,1); resultEl.textContent=''; renderList(); };
+      del.onclick = () => { items.splice(i, 1); resultEl.textContent = ''; renderList(); };
       li.append(span, del);
       listEl.appendChild(li);
     });
     drawWheel();
-    // スタートはアイテムがある時だけ有効
-    startBtn.disabled = items.length === 0;
+    startBtn.disabled = !items.length;
   }
 
-  // 追加
   addBtn.addEventListener('click', () => {
     const v = itemInput.value.trim();
     if (!v) return;
@@ -292,33 +211,24 @@
     renderList();
   });
 
-  // Enterで追加
   itemInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') addBtn.click();
   });
 
-  // 全削除
   clearBtn.addEventListener('click', () => {
     items = [];
     resultEl.textContent = '';
     renderList();
   });
 
-  // スタート
   startBtn.addEventListener('click', () => {
-    if (items.length === 0 || spinning) return;
-    // 初速度はランダム、自然減速
+    if (!items.length || spinning) return;
     vel = Math.random() * 0.28 + 0.28;
-    decel = 0.985;
     spinning = true;
   });
 
-  // 初期描画
   renderList();
   tick();
-  // リサイズ時に針SVGの位置合わせ
-  window.addEventListener('resize', layoutNeedle);
-  layoutNeedle();
 })();
 </script>
 </body>
