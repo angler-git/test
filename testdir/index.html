@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>円形ルーレット</title>
+<title>改良版ルーレット</title>
 <style>
 body {
     font-family: sans-serif;
@@ -51,7 +51,7 @@ canvas {
 </head>
 <body>
 
-<h1>円形ルーレット</h1>
+<h1>改良版 円形ルーレット</h1>
 
 <div id="input-area">
     <input type="text" id="item-input" placeholder="項目を入力">
@@ -127,28 +127,30 @@ function drawWheel() {
     for(let i=0; i<num; i++) {
         const startAngle = angle + i * arc;
         ctx.beginPath();
-        ctx.fillStyle = i % 2 === 0 ? "#fdd835" : "#ff7043";
+        ctx.fillStyle = `hsl(${i * 360 / num}, 70%, 60%)`;
         ctx.moveTo(radius, radius);
         ctx.arc(radius, radius, radius, startAngle, startAngle + arc);
         ctx.closePath();
         ctx.fill();
 
+        // 項目名を常に上向きに
         ctx.save();
         ctx.translate(radius, radius);
         ctx.rotate(startAngle + arc / 2);
-        ctx.textAlign = "right";
+        ctx.rotate(-angle - arc / 2); // 回転を打ち消して上向き
+        ctx.textAlign = "center";
         ctx.fillStyle = "#000";
         ctx.font = "16px sans-serif";
-        ctx.fillText(items[i], radius - 10, 5);
+        ctx.fillText(items[i], 0, -radius + 40);
         ctx.restore();
     }
 
-    // 針
+    // 針（尖らせる）
     ctx.fillStyle = "red";
     ctx.beginPath();
-    ctx.moveTo(radius, radius - radius - 10);
-    ctx.lineTo(radius - 10, radius - radius + 20);
-    ctx.lineTo(radius + 10, radius - radius + 20);
+    ctx.moveTo(radius, 0); // 上中央
+    ctx.lineTo(radius - 15, 20);
+    ctx.lineTo(radius + 15, 20);
     ctx.closePath();
     ctx.fill();
 }
@@ -180,7 +182,7 @@ document.getElementById("start").addEventListener("click", () => {
         return;
     }
     spinVelocity = Math.random() * 0.3 + 0.25; // 初速度
-    spinDeceleration = 0.98; // 減速率
+    spinDeceleration = 0.985; // 減速率
     spinning = true;
 });
 
