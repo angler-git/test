@@ -2,135 +2,134 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ルーレット</title>
+<title>ルーレットアプリ</title>
 <style>
   body {
     font-family: sans-serif;
     text-align: center;
-    margin: 0;
     background: #f0f0f0;
   }
   canvas {
+    margin-top: 20px;
     background: white;
     border-radius: 50%;
-    margin-top: 20px;
   }
-  #controls {
-    margin-top: 20px;
+  .controls {
+    margin-top: 10px;
   }
-  #pointer {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 20px solid transparent;
-    border-right: 20px solid transparent;
-    border-bottom: 40px solid red; /* 上向きの針 */
-    top: 20px;
+  button {
+    margin: 5px;
+    padding: 8px 12px;
   }
 </style>
 </head>
 <body>
-<h1>ルーレット</h1>
-<div id="pointer"></div>
-<canvas id="wheel" width="500" height="500"></canvas>
-
-<div id="controls">
-  <input type="text" id="newItem" placeholder="項目名">
+<h1>ルーレットアプリ</h1>
+<canvas id="roulette" width="500" height="500"></canvas>
+<div class="controls">
+  <input type="text" id="itemInput" placeholder="項目名">
   <button onclick="addItem()">追加</button>
   <button onclick="removeItem()">削除</button>
-  <button onclick="spin()">スタート</button>
+  <button onclick="startRoulette()">スタート</button>
 </div>
 
 <script>
-const canvas = document.getElementById("wheel");
-const ctx = canvas.getContext("2d");
-let items = ["りんご", "バナナ", "オレンジ", "ぶどう"];
+let items = ["りんご", "バナナ", "みかん", "ぶどう"];
 let colors = [];
-let startAngle = 0;
-let spinTimeout = null;
-let spinAngle = 0;
-let spinAngleIncrement = 0;
 let spinning = false;
+let angle = 0;
+let spinSpeed = 0;
+const canvas = document.getElementById("roulette");
+const ctx = canvas.getContext("2d");
+const radius = canvas.width / 2;
 
-// ランダム色生成
+// ランダムカラー生成
 function randomColor() {
-  return `hsl(${Math.random()*360}, 80%, 70%)`;
+  return `hsl(${Math.random()*360}, 70%, 70%)`;
 }
 
-// 項目描画
-function drawWheel() {
-  const outsideRadius = 200;
-  const insideRadius = 50;
-  const textRadius = 150;
-  const arc = Math.PI * 2 / items.length;
-  
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  
-  for (let i = 0; i < items.length; i++) {
-    const angle = startAngle + i * arc;
-    ctx.fillStyle = colors[i] || (colors[i] = randomColor());
+function drawRoulette() {
+  const centerX = radius;
+  const centerY = radius;
+  const arc = 2 * Math.PI / items.length;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // 項目描画
+  for (let i = 0; i < items.length; i++) {
+    const startAngle = angle + i * arc;
     ctx.beginPath();
-    ctx.moveTo(canvas.width/2, canvas.height/2);
-    ctx.arc(canvas.width/2, canvas.height/2, outsideRadius, angle, angle + arc, false);
+    ctx.moveTo(centerX, centerY);
+    ctx.arc(centerX, centerY, radius, startAngle, startAngle + arc);
     ctx.closePath();
+    ctx.fillStyle = colors[i];
     ctx.fill();
     ctx.stroke();
 
+    // テキスト描画（枠内に収める）
     ctx.save();
-    ctx.translate(canvas.width/2, canvas.height/2);
-    ctx.rotate(angle + arc / 2);
-    ctx.textAlign = "center";
+    ctx.translate(centerX, centerY);
+    ctx.rotate(startAngle + arc / 2);
+    ctx.textAlign = "right";
     ctx.fillStyle = "black";
     ctx.font = "16px sans-serif";
-    ctx.fillText(items[i], 0, -textRadius);
+    ctx.fillText(items[i], radius - 10, 5); 
     ctx.restore();
   }
+
+  // 針（上向き）
+  ctx.beginPath();
+  ctx.moveTo(centerX - 10, 10);
+  ctx.lineTo(centerX + 10, 10);
+  ctx.lineTo(centerX, 40);
+  ctx.closePath();
+  ctx.fillStyle = "red";
+  ctx.fill();
 }
 
-// 回転処理
-function rotateWheel() {
-  startAngle += spinAngleIncrement * Math.PI / 180;
-  spinAngleIncrement *= 0.97; // 減速
-  if (spinAngleIncrement <= 0.2) {
-    spinning = false;
-    return;
+function update() {
+  if (spinning) {
+    angle += spinSpeed;
+    spinSpeed *= 0.98; 
+    if (spinSpeed < 0.002) spinning = false;
   }
-  drawWheel();
-  spinTimeout = requestAnimationFrame(rotateWheel);
+  drawRoulette();
+  requestAnimationFrame(update);
 }
 
-function spin() {
-  if (spinning) return;
-  spinning = true;
-  spinAngleIncrement = Math.random() * 10 + 10;
-  rotateWheel();
+function startRoulette() {
+  if (!spinning) {
+    spinSpeed = Math.random() * 0.3 + 0.3;
+    spinning = true;
+  }
 }
 
 function addItem() {
-  const val = document.getElementById("newItem").value.trim();
+  const val = document.getElementById("itemInput").value.trim();
   if (val) {
     items.push(val);
     colors.push(randomColor());
-    drawWheel();
+    document.getElementById("itemInput").value = "";
   }
 }
 
 function removeItem() {
-  const val = document.getElementById("newItem").value.trim();
+  const val = document.getElementById("itemInput").value.trim();
   if (val) {
     const idx = items.indexOf(val);
     if (idx >= 0) {
       items.splice(idx, 1);
       colors.splice(idx, 1);
-      drawWheel();
     }
+    document.getElementById("itemInput").value = "";
   }
 }
 
-drawWheel();
+// 初期色設定
+for (let i = 0; i < items.length; i++) {
+  colors.push(randomColor());
+}
+
+update();
 </script>
 </body>
 </html>
