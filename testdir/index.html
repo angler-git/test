@@ -1,260 +1,258 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ルーレット</title>
-<style>
-  body {
-    font-family: sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    background: #f5f5f7;
-    padding: 18px;
-  }
-  h1 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 700;
-  }
-  #wrap {
-    position: relative;
-    width: 90vw;
-    max-width: 520px;
-  }
-  canvas {
-    width: 100%;
-    height: auto;
-    background: #fff;
-    border-radius: 50%;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), inset 0 0 0 2px #eee;
-    display: block;
-  }
-  .controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-    align-items: center;
-  }
-  .controls input,
-  .controls button {
-    padding: 8px 10px;
-    width: 220px;
-    max-width: 70vw;
-  }
-  ul {
-    list-style: none;
-    padding: 0;
-    margin: 8px 0 0;
-    width: 100%;
-    max-width: 420px;
-  }
-  li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #fff;
-    border: 1px solid #e5e5e5;
-    margin: 4px 0;
-    padding: 6px 8px;
-  }
-  #result {
-    font-weight: 700;
-    margin-top: 8px;
-    font-size: 18px;
-    color: crimson;
-    text-align: center;
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ルーレット</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      background: #f5f5f7;
+      padding: 18px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    #wrap {
+      position: relative;
+      width: 90vw;
+      max-width: 520px;
+    }
+    canvas {
+      width: 100%;
+      height: auto;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), inset 0 0 0 2px #eee;
+      display: block;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+    }
+    .controls input,
+    .controls button {
+      padding: 8px 10px;
+      width: 220px;
+      max-width: 70vw;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 8px 0 0;
+      width: 100%;
+      max-width: 420px;
+    }
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      margin: 4px 0;
+      padding: 6px 8px;
+    }
+    #result {
+      font-weight: 700;
+      margin-top: 8px;
+      font-size: 18px;
+      color: crimson;
+      text-align: center;
+    }
+  </style>
 </head>
 <body>
-<h1>ルーレット</h1>
-<div id="wrap">
-  <canvas id="wheel" aria-label="ルーレット"></canvas>
-</div>
-<div class="controls">
-  <input type="text" id="itemInput" placeholder="項目名（Enterで追加）">
-  <button id="addBtn">追加</button>
-  <button id="startBtn" disabled>スタート</button>
-  <button id="clearBtn">全削除</button>
-</div>
-<ul id="list"></ul>
-<div id="result"></div>
+  <h1>ルーレット</h1>
+  <div id="wrap">
+    <canvas id="wheel" aria-label="ルーレット"></canvas>
+  </div>
+  <div class="controls">
+    <input type="text" id="itemInput" placeholder="項目名（Enterで追加）">
+    <button id="addBtn">追加</button>
+    <button id="startBtn" disabled>スタート</button>
+    <button id="clearBtn">全削除</button>
+    <button id="fullscreenBtn">全画面表示</button>
+  </div>
+  <ul id="list"></ul>
+  <div id="result"></div>
 
-<script>
-(() => {
-  const canvas = document.getElementById('wheel');
-  const ctx = canvas.getContext('2d');
-  const state = { items: [], angle: 0, vel: 0, spinning: false, decel: 0.985 };
-  const itemInput = document.getElementById('itemInput');
-  const addBtn = document.getElementById('addBtn');
-  const startBtn = document.getElementById('startBtn');
-  const clearBtn = document.getElementById('clearBtn');
-  const listEl = document.getElementById('list');
-  const resultEl = document.getElementById('result');
+  <script>
+    (() => {
+      const canvas = document.getElementById('wheel');
+      const ctx = canvas.getContext('2d');
+      const state = { items: [], angle: 0, vel: 0, spinning: false, decel: 0.985 };
+      const itemInput = document.getElementById('itemInput');
+      const addBtn = document.getElementById('addBtn');
+      const startBtn = document.getElementById('startBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      const fullscreenBtn = document.getElementById('fullscreenBtn');
+      const listEl = document.getElementById('list');
+      const resultEl = document.getElementById('result');
 
-  function resizeCanvas() {
-    const w = canvas.clientWidth;
-    canvas.width = w;
-    canvas.height = w;
-  }
-  window.addEventListener('resize', () => { resizeCanvas(); drawWheel(); });
-  resizeCanvas();
-
-  const colorAt = (i, n) => `hsl(${(i * 360 / Math.max(n, 1)) % 360}, 75%, 62%)`;
-
-  function drawNeedle(R) {
-    ctx.beginPath();
-    ctx.moveTo(R, 8);
-    ctx.lineTo(R - 14, 30);
-    ctx.lineTo(R + 14, 30);
-    ctx.closePath();
-    ctx.fillStyle = 'crimson';
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(R, 30, 3, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  function drawArcText(text, radius, startAngle, endAngle) {
-    const angle = endAngle - startAngle;
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.rotate(startAngle + angle / 2);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const maxFont = 18;
-    const minFont = 6;
-    let font = maxFont;
-    ctx.font = `${font}px sans-serif`;
-    let textAngle = ctx.measureText(text).width / radius;
-    while (textAngle > angle * 0.9 && font > minFont) {
-      font--;
-      ctx.font = `${font}px sans-serif`;
-      textAngle = ctx.measureText(text).width / radius;
-    }
-    let lines = [text];
-    if (textAngle > angle * 0.9) {
-      const mid = Math.floor(text.length / 2);
-      lines = [text.slice(0, mid), text.slice(mid)];
-      font = Math.min(font, (angle * 0.9 * radius) / Math.max(ctx.measureText(lines[0]).width, ctx.measureText(lines[1]).width));
-      ctx.font = `${font}px sans-serif`;
-    }
-    const lineHeight = font * 1.2;
-    if (lines.length === 1) {
-      ctx.fillText(lines[0], 0, -radius * 0.62);
-    } else {
-      ctx.fillText(lines[0], 0, -radius * 0.62 - lineHeight / 2);
-      ctx.fillText(lines[1], 0, -radius * 0.62 + lineHeight / 2);
-    }
-    ctx.restore();
-  }
-
-  function drawWheel() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const SIZE = canvas.width;
-    const R = SIZE / 2;
-    const C = { x: R, y: R };
-
-    if (state.items.length === 0) {
-      ctx.beginPath();
-      ctx.arc(C.x, C.y, R, 0, 2 * Math.PI);
-      ctx.fillStyle = '#fafafa';
-      ctx.fill();
-      ctx.strokeStyle = '#e5e5e5';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      drawNeedle(R);
-      ctx.font = '16px sans-serif';
-      ctx.fillStyle = '#666';
-      ctx.fillText('項目を追加してください', C.x, C.y);
-      return;
-    }
-
-    const n = state.items.length;
-    const arc = 2 * Math.PI / n;
-
-    for (let i = 0; i < n; i++) {
-      const start = state.angle + i * arc;
-      const end = start + arc;
-      ctx.beginPath();
-      ctx.moveTo(C.x, C.y);
-      ctx.arc(C.x, C.y, R, start, end);
-      ctx.closePath();
-      ctx.fillStyle = colorAt(i, n);
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      drawArcText(state.items[i], R, start, end);
-    }
-
-    ctx.beginPath();
-    ctx.arc(C.x, C.y, R * 0.06, 0, 2 * Math.PI);
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-    ctx.strokeStyle = '#ddd';
-    ctx.stroke();
-    drawNeedle(R);
-  }
-
-  function announceResult() {
-    if (state.items.length === 0) return;
-    const n = state.items.length;
-    const arc = 2 * Math.PI / n;
-    let a = state.angle % (2 * Math.PI);
-    if (a < 0) a += 2 * Math.PI;
-    const fromTop = (2 * Math.PI - a) % (2 * Math.PI);
-    const idx = Math.floor(fromTop / arc) % n;
-    resultEl.textContent = `結果：${state.items[idx]}`;
-  }
-
-  function tick() {
-    if (state.spinning) {
-      state.angle += state.vel;
-      state.vel *= state.decel;
-      if (state.vel < 0.002) {
-        state.spinning = false;
-        announceResult();
+      function resizeCanvas() {
+        const w = canvas.clientWidth;
+        canvas.width = w;
+        canvas.height = w;
       }
-    }
-    drawWheel();
-    requestAnimationFrame(tick);
-  }
+      window.addEventListener('resize', () => { resizeCanvas(); drawWheel(); });
+      resizeCanvas();
 
-  function renderList() {
-    listEl.innerHTML = '';
-    state.items.forEach((t, i) => {
-      const li = document.createElement('li');
-      const span = document.createElement('span');
-      span.textContent = t;
-      const del = document.createElement('button');
-      del.textContent = '削除';
-      del.onclick = () => {
-        state.items.splice(i, 1);
-        resultEl.textContent = '';
+      const colorAt = (i, n) => `hsl(${(i * 360 / Math.max(n, 1)) % 360}, 75%, 62%)`;
+
+      function drawNeedle(R) {
+        ctx.beginPath();
+        ctx.moveTo(R, 8);
+        ctx.lineTo(R - 14, 30);
+        ctx.lineTo(R + 14, 30);
+        ctx.closePath();
+        ctx.fillStyle = 'crimson';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(R, 30, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function drawArcText(text, radius, startAngle, endAngle) {
+        const angle = endAngle - startAngle;
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(startAngle + angle / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const maxFont = 18;
+        const minFont = 6;
+        let font = maxFont;
+        ctx.font = `${font}px sans-serif`;
+        let textAngle = ctx.measureText(text).width / radius;
+        while (textAngle > angle * 0.9 && font > minFont) {
+          font--;
+          ctx.font = `${font}px sans-serif`;
+          textAngle = ctx.measureText(text).width / radius;
+        }
+        let lines = [text];
+        if (textAngle > angle * 0.9) {
+          const mid = Math.floor(text.length / 2);
+          lines = [text.slice(0, mid), text.slice(mid)];
+          font = Math.min(font, (angle * 0.9 * radius) / Math.max(ctx.measureText(lines[0]).width, ctx.measureText(lines[1]).width));
+          ctx.font = `${font}px sans-serif`;
+        }
+        const lineHeight = font * 1.2;
+        if (lines.length === 1) {
+          ctx.fillText(lines[0], 0, -radius * 0.62);
+        } else {
+          ctx.fillText(lines[0], 0, -radius * 0.62 - lineHeight / 2);
+          ctx.fillText(lines[1], 0, -radius * 0.62 + lineHeight / 2);
+        }
+        ctx.restore();
+      }
+
+      function drawWheel() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const SIZE = canvas.width;
+        const R = SIZE / 2;
+        const C = { x: R, y: R };
+
+        if (state.items.length === 0) {
+          ctx.beginPath();
+          ctx.arc(C.x, C.y, R, 0, 2 * Math.PI);
+          ctx.fillStyle = '#fafafa';
+          ctx.fill();
+          ctx.strokeStyle = '#e5e5e5';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          drawNeedle(R);
+          ctx.font = '16px sans-serif';
+          ctx.fillStyle = '#666';
+          ctx.fillText('項目を追加してください', C.x, C.y);
+          return;
+        }
+
+        const n = state.items.length;
+        const arc = 2 * Math.PI / n;
+
+        for (let i = 0; i < n; i++) {
+          const start = state.angle + i * arc;
+          const end = start + arc;
+          ctx.beginPath();
+          ctx.moveTo(C.x, C.y);
+          ctx.arc(C.x, C.y, R, start, end);
+          ctx.closePath();
+          ctx.fillStyle = colorAt(i, n);
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          drawArcText(state.items[i], R, start, end);
+        }
+
+        ctx.beginPath();
+        ctx.arc(C.x, C.y, R * 0.06, 0, 2 * Math.PI);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.strokeStyle = '#ddd';
+        ctx.stroke();
+        drawNeedle(R);
+      }
+
+      function announceResult() {
+        if (state.items.length === 0) return;
+        const n = state.items.length;
+        const arc = 2 * Math.PI / n;
+        let a = state.angle % (2 * Math.PI);
+        if (a < 0) a += 2 * Math.PI;
+        const fromTop = (2 * Math.PI - a) % (2 * Math.PI);
+        const idx = Math.floor(fromTop / arc) % n;
+        resultEl.textContent = `結果：${state.items[idx]}`;
+      }
+
+      function tick() {
+        if (state.spinning) {
+          state.angle += state.vel;
+          state.vel *= state.decel;
+          if (state.vel < 0.002) {
+            state.spinning = false;
+            announceResult();
+          }
+        }
+        drawWheel();
+        requestAnimationFrame(tick);
+      }
+
+      function renderList() {
+        listEl.innerHTML = '';
+        state.items.forEach((t, i) => {
+          const li = document.createElement('li');
+          const span = document.createElement('span');
+          span.textContent = t;
+          const del = document.createElement('button');
+          del.textContent = '削除';
+          del.onclick = () => {
+            state.items.splice(i, 1);
+            resultEl.textContent = '';
+            renderList();
+          };
+          li.append(span, del);
+          listEl.appendChild(li);
+        });
+        startBtn.disabled = state.items.length === 0;
+        drawWheel();
+      }
+
+      addBtn.addEventListener('click', () => {
+        const v = itemInput.value.trim();
+        if (!v) return;
+        state.items.push(v);
+        itemInput.value = '';
         renderList();
-      };
-      li.append(span, del);
-      listEl.appendChild(li);
-    });
-    startBtn.disabled = state.items.length === 0;
-    drawWheel();
-  }
-
-  addBtn.addEventListener('click', () => {
-    const v = itemInput.value.trim();
-    if (!v) return;
-    state.items.push(v);
-    itemInput.value = '';
-    renderList();
-  });
-  itemInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') addBtn.click();
-  });
-  clearBtn.addEventListener('click', () => {
-    state 
+      });
+      itemInput.addEventListener 
