@@ -2,144 +2,160 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ルーレット</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ルーレットアプリ</title>
 <style>
-body { font-family:sans-serif; text-align:center; background:#f5f5f7; padding:20px; }
-canvas { background:#fff; border-radius:50%; box-shadow:0 8px 28px rgba(0,0,0,0.08); }
-.controls { margin-top:12px; }
-.controls input { padding:6px; width:160px; }
-.controls button { padding:6px 12px; margin-left:4px; }
-ul { list-style:none; padding:0; max-width:300px; margin:10px auto; }
-li { display:flex; justify-content:space-between; margin:2px 0; padding:4px 8px; background:#fff; border:1px solid #ddd; }
-#result { margin-top:10px; font-weight:bold; }
+body {
+  font-family: sans-serif;
+  margin: 0; padding: 20px;
+  background: #f5f5f7;
+  display: flex; flex-direction: column; align-items: center;
+}
+h1 { margin-bottom: 12px; }
+canvas {
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  max-width: 90vw;
+  height: auto;
+}
+.controls { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.controls input { padding: 6px; width: 150px; }
+.controls button { padding: 6px 12px; cursor: pointer; }
+ul { list-style: none; padding: 0; max-width: 300px; width: 100%; margin-top: 10px; }
+li { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; margin: 2px 0; background: #fff; border: 1px solid #ddd; }
+#result { margin-top: 10px; font-weight: bold; font-size: 16px; }
 </style>
 </head>
 <body>
 <h1>ルーレット</h1>
 <canvas id="wheel" width="500" height="500"></canvas>
 <div class="controls">
-<input type="text" id="itemInput" placeholder="項目名">
-<button id="addBtn">追加</button>
-<button id="startBtn" disabled>スタート</button>
-<button id="clearBtn">全削除</button>
+  <input type="text" id="itemInput" placeholder="項目名">
+  <button id="addBtn">追加</button>
+  <button id="startBtn" disabled>スタート</button>
+  <button id="clearBtn">全削除</button>
 </div>
 <ul id="list"></ul>
 <div id="result"></div>
 
 <script>
 (() => {
-const canvas=document.getElementById('wheel'),ctx=canvas.getContext('2d');
-const R=canvas.width/2;
-const center={x:R,y:R};
-let items=[]; 
-let angle=0, vel=0, spinning=false;
-const dec=0.985;
+const canvas = document.getElementById('wheel');
+const ctx = canvas.getContext('2d');
+const R = canvas.width/2;
+const center = {x: R, y: R};
 
-const itemInput=document.getElementById('itemInput');
-const addBtn=document.getElementById('addBtn');
-const startBtn=document.getElementById('startBtn');
-const clearBtn=document.getElementById('clearBtn');
-const listEl=document.getElementById('list');
-const resultEl=document.getElementById('result');
+let items = [];
+let angle = 0, vel = 0, spinning = false;
+const dec = 0.985;
 
-const colorAt=(i,n)=>`hsl(${(i*360/n)%360},70%,65%)`;
+const itemInput = document.getElementById('itemInput');
+const addBtn = document.getElementById('addBtn');
+const startBtn = document.getElementById('startBtn');
+const clearBtn = document.getElementById('clearBtn');
+const listEl = document.getElementById('list');
+const resultEl = document.getElementById('result');
 
-// テキスト描画関数
-function drawText(text,maxWidth){
-  let font=18;
-  ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillStyle='#111';
-  while(font>10){
-    ctx.font=font+'px sans-serif';
-    if(ctx.measureText(text).width<=maxWidth) break;
+const colorAt = (i, n) => `hsl(${(i*360/n)%360},70%,65%)`;
+
+// 項目名描画
+function drawText(text, maxWidth){
+  let font = 18;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#111';
+  while(font > 10){
+    ctx.font = font + 'px sans-serif';
+    if(ctx.measureText(text).width <= maxWidth) break;
     font--;
   }
-  ctx.fillText(text,0,0);
+  ctx.fillText(text, 0, 0);
 }
 
 // 針描画
 function drawNeedle(){
-  const apexY=center.y-R+8;
+  const apexY = center.y - R + 8;
   ctx.beginPath();
-  ctx.moveTo(center.x,apexY);
-  ctx.lineTo(center.x-14,apexY+22);
-  ctx.lineTo(center.x+14,apexY+22);
+  ctx.moveTo(center.x, apexY);
+  ctx.lineTo(center.x-14, apexY+22);
+  ctx.lineTo(center.x+14, apexY+22);
   ctx.closePath();
-  ctx.fillStyle='crimson';
+  ctx.fillStyle = 'crimson';
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(center.x,apexY+22,3,0,Math.PI*2);
+  ctx.arc(center.x, apexY+22, 3, 0, Math.PI*2);
   ctx.fill();
 }
 
+// ルーレット描画
 function drawWheel(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   if(!items.length){
     ctx.beginPath();
-    ctx.arc(center.x,center.y,R,0,Math.PI*2);
+    ctx.arc(center.x, center.y, R, 0, 2*Math.PI);
     ctx.fillStyle='#fafafa'; ctx.fill();
     ctx.strokeStyle='#e5e5e5'; ctx.stroke();
     drawNeedle();
-    ctx.font='16px sans-serif'; ctx.fillStyle='#666';
-    ctx.fillText('項目を追加してください',center.x,center.y);
+    ctx.font='16px sans-serif';
+    ctx.fillStyle='#666';
+    ctx.fillText('項目を追加してください', center.x, center.y);
     return;
   }
-  const n=items.length;
-  const arc=2*Math.PI/n;
-  const textR=R*0.62;
-  const chord=2*textR*Math.tan(arc/2)*0.9;
-
+  const n = items.length;
+  const arc = 2*Math.PI/n;
+  const textR = R*0.62;
+  const chord = 2*textR*Math.tan(arc/2)*0.9;
   for(let i=0;i<n;i++){
-    const start=angle+i*arc;
-    const end=start+arc;
+    const start = angle + i*arc;
+    const end = start + arc;
     ctx.beginPath();
-    ctx.moveTo(center.x,center.y);
-    ctx.arc(center.x,center.y,R,start,end);
+    ctx.moveTo(center.x, center.y);
+    ctx.arc(center.x, center.y, R, start, end);
     ctx.closePath();
-    ctx.fillStyle=colorAt(i,n);
+    ctx.fillStyle = colorAt(i,n);
     ctx.fill();
     ctx.strokeStyle='#fff'; ctx.lineWidth=1;
     ctx.stroke();
 
     // テキスト
     ctx.save();
-    ctx.translate(center.x,center.y);
-    const mid=start+arc/2;
+    ctx.translate(center.x, center.y);
+    const mid = start + arc/2;
     ctx.rotate(mid);
-    ctx.translate(0,-textR);
+    ctx.translate(0, -textR);
     ctx.rotate(-mid);
-    drawText(items[i],chord);
+    drawText(items[i], chord);
     ctx.restore();
   }
-
   ctx.beginPath();
-  ctx.arc(center.x,center.y,R*0.06,0,Math.PI*2);
+  ctx.arc(center.x, center.y, R*0.06, 0, 2*Math.PI);
   ctx.fillStyle='#fff'; ctx.fill();
   ctx.strokeStyle='#ddd'; ctx.stroke();
   drawNeedle();
 }
 
+// 結果表示
 function announceResult(){
   if(!items.length) return;
-  const n=items.length;
-  const arc=2*Math.PI/n;
-  let a=angle%(2*Math.PI); if(a<0) a+=2*Math.PI;
-  const fromTop=(2*Math.PI-a)%(2*Math.PI);
-  const idx=Math.floor(fromTop/arc)%n;
-  resultEl.textContent=`結果：${items[idx]}`;
+  const n = items.length;
+  const arc = 2*Math.PI/n;
+  let a = angle % (2*Math.PI); if(a<0) a += 2*Math.PI;
+  const fromTop = (2*Math.PI - a) % (2*Math.PI);
+  const idx = Math.floor(fromTop/arc) % n;
+  resultEl.textContent = `結果：${items[idx]}`;
 }
 
+// アニメーション
 function tick(){
   if(spinning){
-    angle+=vel;
-    vel*=dec;
-    if(vel<0.002){ spinning=false; announceResult(); }
+    angle += vel;
+    vel *= dec;
+    if(vel < 0.002){ spinning=false; announceResult(); }
   }
   drawWheel();
   requestAnimationFrame(tick);
 }
 
+// リスト描画
 function renderList(){
   listEl.innerHTML='';
   items.forEach((t,i)=>{
@@ -150,19 +166,21 @@ function renderList(){
     li.append(span,del); listEl.appendChild(li);
   });
   drawWheel();
-  startBtn.disabled=!items.length;
+  startBtn.disabled = !items.length;
 }
 
+// イベント
 addBtn.addEventListener('click',()=>{
-  const v=itemInput.value.trim(); if(!v) return;
+  const v = itemInput.value.trim(); if(!v) return;
   items.push(v); itemInput.value=''; renderList();
 });
-itemInput.addEventListener('keydown',e=>{ if(e.key==='Enter') addBtn.click(); });
-clearBtn.addEventListener('click',()=>{ items=[]; resultEl.textContent=''; renderList(); });
-startBtn.addEventListener('click',()=>{ if(!items.length||spinning) return; vel=Math.random()*0.28+0.28; spinning=true; });
+itemInput.addEventListener('keydown', e => { if(e.key==='Enter') addBtn.click(); });
+clearBtn.addEventListener('click', ()=>{ items=[]; resultEl.textContent=''; renderList(); });
+startBtn.addEventListener('click', ()=>{ if(!items.length||spinning) return; vel=Math.random()*0.28+0.28; spinning=true; });
 
 renderList();
 tick();
+})();
 </script>
 </body>
 </html>
