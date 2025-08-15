@@ -1,185 +1,319 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ルーレットアプリ</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ルーレット</title>
 <style>
-body {
-  font-family: sans-serif;
-  margin: 0; padding: 20px;
-  background: #f5f5f7;
-  display: flex; flex-direction: column; align-items: center;
-}
-h1 { margin-bottom: 12px; }
-canvas {
-  background: #fff;
-  border-radius: 50%;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-  max-width: 90vw;
-  height: auto;
-}
-.controls { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
-.controls input { padding: 6px; width: 150px; }
-.controls button { padding: 6px 12px; cursor: pointer; }
-ul { list-style: none; padding: 0; max-width: 300px; width: 100%; margin-top: 10px; }
-li { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; margin: 2px 0; background: #fff; border: 1px solid #ddd; }
-#result { margin-top: 10px; font-weight: bold; font-size: 16px; }
+  :root { --max-size: 520px; }
+  body {
+    margin: 0; padding: 18px;
+    background:#f5f5f7; font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+  }
+  h1 { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
+  #wrap { position: relative; }
+  canvas {
+    width: min(92vw, var(--max-size));
+    height: auto;
+    background:#fff; border-radius:50%;
+    box-shadow: 0 8px 24px rgba(0,0,0,.08), inset 0 0 0 2px #eee;
+    display:block;
+  }
+  .controls {
+    display:flex; flex-wrap:wrap; gap:8px; justify-content:center; align-items:center;
+  }
+  .controls input { padding:8px 10px; width: 220px; max-width: 70vw; }
+  .controls button { padding:8px 12px; cursor:pointer; }
+  ul { list-style:none; padding:0; margin:8px 0 0; width:min(92vw, 420px); }
+  li {
+    display:flex; justify-content:space-between; align-items:center;
+    background:#fff; border:1px solid #e5e5e5; margin:4px 0; padding:6px 8px;
+  }
+  #result { font-weight:700; margin-top: 4px; }
 </style>
 </head>
 <body>
-<h1>ルーレット</h1>
-<canvas id="wheel" width="500" height="500"></canvas>
-<div class="controls">
-  <input type="text" id="itemInput" placeholder="項目名">
-  <button id="addBtn">追加</button>
-  <button id="startBtn" disabled>スタート</button>
-  <button id="clearBtn">全削除</button>
-</div>
-<ul id="list"></ul>
-<div id="result"></div>
+  <h1>ルーレット</h1>
+
+  <div id="wrap">
+    <canvas id="wheel" width="600" height="600" aria-label="ルーレット"></canvas>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="itemInput" placeholder="項目名（Enterで追加）" />
+    <button id="addBtn">追加</button>
+    <button id="startBtn" disabled>スタート</button>
+    <button id="clearBtn">全削除</button>
+  </div>
+
+  <ul id="list"></ul>
+  <div id="result"></div>
 
 <script>
+/* =========================
+   ルーレット本体（リファクタ済）
+   ========================= */
 (() => {
-const canvas = document.getElementById('wheel');
-const ctx = canvas.getContext('2d');
-const R = canvas.width/2;
-const center = {x: R, y: R};
+  // ---- DOM/Canvas ----
+  const canvas = document.getElementById('wheel');
+  const ctx = canvas.getContext('2d');
+  const SIZE = canvas.width;     // 論理ピクセル 600
+  const R    = SIZE / 2;         // 半径
+  const C    = { x: R, y: R };   // 中心
 
-let items = [];
-let angle = 0, vel = 0, spinning = false;
-const dec = 0.985;
+  // ---- 状態 ----
+  const state = {
+    items: [],         // デフォルト空
+    angle: 0,          // 現在角
+    vel: 0,            // 角速度
+    spinning: false,
+    decel: 0.985       // 減速率
+  };
 
-const itemInput = document.getElementById('itemInput');
-const addBtn = document.getElementById('addBtn');
-const startBtn = document.getElementById('startBtn');
-const clearBtn = document.getElementById('clearBtn');
-const listEl = document.getElementById('list');
-const resultEl = document.getElementById('result');
+  // ---- UI ----
+  const $ = (s) => document.querySelector(s);
+  const itemInput = $('#itemInput');
+  const addBtn    = $('#addBtn');
+  const startBtn  = $('#startBtn');
+  const clearBtn  = $('#clearBtn');
+  const listEl    = $('#list');
+  const resultEl  = $('#result');
 
-const colorAt = (i, n) => `hsl(${(i*360/n)%360},70%,65%)`;
+  // ---- Utility ----
+  const colorAt = (i, n) => `hsl(${(i * 360 / Math.max(n,1)) % 360}, 75%, 62%)`;
 
-// 項目名描画
-function drawText(text, maxWidth){
-  let font = 18;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#111';
-  while(font > 10){
-    ctx.font = font + 'px sans-serif';
-    if(ctx.measureText(text).width <= maxWidth) break;
-    font--;
+  /** 指定幅に必ず収まるよう、1〜2行に整形して返す（フォント自動縮小・省略記号対応） */
+  function layoutLines(ctx, text, maxWidth, {
+    maxFont = 18, minFont = 10, maxLines = 2, lineGapRatio = 1.15
+  } = {}) {
+    // 計測用
+    const width = (t, f) => { ctx.font = `${f}px system-ui, sans-serif`; return ctx.measureText(t).width; };
+
+    // まず単行チャレンジ
+    for (let f = maxFont; f >= minFont; f--) {
+      if (width(text, f) <= maxWidth) {
+        return { font: f, lines: [text], lineHeight: Math.round(f * lineGapRatio) };
+      }
+    }
+
+    // 2行チャレンジ（日本語はスペースが無い前提で任意分割）
+    if (maxLines >= 2) {
+      for (let f = maxFont; f >= minFont; f--) {
+        // 分割位置候補（中央付近を優先）
+        const L = text.length;
+        const order = [...Array(L-1).keys()].map(i => i+1)
+          .sort((a,b)=>Math.abs(a-L/2)-Math.abs(b-L/2));
+        for (const cut of order) {
+          const a = text.slice(0, cut);
+          const b = text.slice(cut);
+          if (width(a, f) <= maxWidth && width(b, f) <= maxWidth) {
+            return { font: f, lines: [a, b], lineHeight: Math.round(f * lineGapRatio) };
+          }
+        }
+      }
+      // どうしても入らない → 最小フォント＋エリプシス
+      const f = minFont;
+      let a = '', b = '';
+      // 1行目を詰める
+      for (let i = 1; i <= text.length; i++) {
+        if (width(text.slice(0, i), f) <= maxWidth) a = text.slice(0, i);
+        else break;
+      }
+      // 残りを2行目に。はみ出す場合は…で詰める
+      let rest = text.slice(a.length);
+      while (rest && width(rest + '…', f) > maxWidth) rest = rest.slice(0, -1);
+      b = rest ? rest + '…' : '…';
+      return { font: f, lines: [a || '…', b], lineHeight: Math.round(f * lineGapRatio) };
+    }
+
+    // 単行＋エリプシス（maxLines=1のとき）
+    const f = minFont;
+    let t = text;
+    while (t && width(t + '…', f) > maxWidth) t = t.slice(0, -1);
+    return { font: f, lines: [t ? t + '…' : '…'], lineHeight: Math.round(f * 1.15) };
   }
-  ctx.fillText(text, 0, 0);
-}
 
-// 針描画
-function drawNeedle(){
-  const apexY = center.y - R + 8;
-  ctx.beginPath();
-  ctx.moveTo(center.x, apexY);
-  ctx.lineTo(center.x-14, apexY+22);
-  ctx.lineTo(center.x+14, apexY+22);
-  ctx.closePath();
-  ctx.fillStyle = 'crimson';
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(center.x, apexY+22, 3, 0, Math.PI*2);
-  ctx.fill();
-}
-
-// ルーレット描画
-function drawWheel(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  if(!items.length){
+  /** 針（円の上辺・内側に1本） */
+  function drawNeedle() {
+    const apexY = C.y - R + 8; // 円の内側に 8px オフセット
     ctx.beginPath();
-    ctx.arc(center.x, center.y, R, 0, 2*Math.PI);
-    ctx.fillStyle='#fafafa'; ctx.fill();
-    ctx.strokeStyle='#e5e5e5'; ctx.stroke();
-    drawNeedle();
-    ctx.font='16px sans-serif';
-    ctx.fillStyle='#666';
-    ctx.fillText('項目を追加してください', center.x, center.y);
-    return;
-  }
-  const n = items.length;
-  const arc = 2*Math.PI/n;
-  const textR = R*0.62;
-  const chord = 2*textR*Math.tan(arc/2)*0.9;
-  for(let i=0;i<n;i++){
-    const start = angle + i*arc;
-    const end = start + arc;
-    ctx.beginPath();
-    ctx.moveTo(center.x, center.y);
-    ctx.arc(center.x, center.y, R, start, end);
+    ctx.moveTo(C.x, apexY);             // 先端
+    ctx.lineTo(C.x - 14, apexY + 22);   // 左
+    ctx.lineTo(C.x + 14, apexY + 22);   // 右
     ctx.closePath();
-    ctx.fillStyle = colorAt(i,n);
+    ctx.fillStyle = 'crimson';
     ctx.fill();
-    ctx.strokeStyle='#fff'; ctx.lineWidth=1;
+
+    // 小さな丸キャップ
+    ctx.beginPath();
+    ctx.arc(C.x, apexY + 22, 3, 0, Math.PI * 2);
+    ctx.fillStyle = 'crimson';
+    ctx.fill();
+  }
+
+  /** ホイール描画 */
+  function drawWheel() {
+    ctx.clearRect(0, 0, SIZE, SIZE);
+
+    // 空状態
+    if (state.items.length === 0) {
+      ctx.beginPath();
+      ctx.arc(C.x, C.y, R, 0, Math.PI * 2);
+      ctx.fillStyle = '#fafafa';
+      ctx.fill();
+      ctx.strokeStyle = '#e5e5e5';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      drawNeedle();
+
+      ctx.fillStyle = '#666';
+      ctx.font = '16px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('項目を追加してください', C.x, C.y);
+      return;
+    }
+
+    // セグメント
+    const n   = state.items.length;
+    const arc = (Math.PI * 2) / n;
+
+    // テキストを置く半径（内側寄り）と、そこでの最大弦長
+    const textR    = R * 0.62;
+    const maxChord = 2 * textR * Math.tan(arc / 2) * 0.90; // 両端に10%の余白
+
+    for (let i = 0; i < n; i++) {
+      const start = state.angle + i * arc;
+      const end   = start + arc;
+
+      // セクション
+      ctx.beginPath();
+      ctx.moveTo(C.x, C.y);
+      ctx.arc(C.x, C.y, R, start, end);
+      ctx.closePath();
+      ctx.fillStyle = colorAt(i, n); // 隣同士で同色にならない（均等HSL）
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // 文字：扇の中心線上・上向き固定・幅と行数を自動調整
+      const label = String(state.items[i] ?? '');
+      const mid   = start + arc / 2;
+
+      // レイアウト計算
+      const layout = layoutLines(ctx, label, maxChord, { maxFont: 18, minFont: 10, maxLines: 2 });
+      const { font, lines, lineHeight } = layout;
+
+      ctx.save();
+      ctx.translate(C.x, C.y);
+      ctx.rotate(mid);                  // 扇の中心線の方向へ
+      ctx.translate(0, -textR);         // 扇の内側位置へ
+      ctx.rotate(-mid);                 // テキストは上向き（水平）に戻す
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#111';
+      ctx.font = `${font}px system-ui, sans-serif`;
+
+      if (lines.length === 1) {
+        ctx.fillText(lines[0], 0, 0);
+      } else {
+        // 2行：上下に均等配置（縦方向も控えめ）
+        ctx.fillText(lines[0], 0, -lineHeight / 2);
+        ctx.fillText(lines[1], 0, +lineHeight / 2);
+      }
+      ctx.restore();
+    }
+
+    // 中心キャップ
+    ctx.beginPath();
+    ctx.arc(C.x, C.y, R * 0.06, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.strokeStyle = '#ddd';
     ctx.stroke();
 
-    // テキスト
-    ctx.save();
-    ctx.translate(center.x, center.y);
-    const mid = start + arc/2;
-    ctx.rotate(mid);
-    ctx.translate(0, -textR);
-    ctx.rotate(-mid);
-    drawText(items[i], chord);
-    ctx.restore();
+    // 針は常に最後に（重ね順）
+    drawNeedle();
   }
-  ctx.beginPath();
-  ctx.arc(center.x, center.y, R*0.06, 0, 2*Math.PI);
-  ctx.fillStyle='#fff'; ctx.fill();
-  ctx.strokeStyle='#ddd'; ctx.stroke();
-  drawNeedle();
-}
 
-// 結果表示
-function announceResult(){
-  if(!items.length) return;
-  const n = items.length;
-  const arc = 2*Math.PI/n;
-  let a = angle % (2*Math.PI); if(a<0) a += 2*Math.PI;
-  const fromTop = (2*Math.PI - a) % (2*Math.PI);
-  const idx = Math.floor(fromTop/arc) % n;
-  resultEl.textContent = `結果：${items[idx]}`;
-}
+  /** 停止時に針（12時）で指した項目を表示 */
+  function announceResult() {
+    const n = state.items.length;
+    if (n === 0) return;
+    const arc = (Math.PI * 2) / n;
 
-// アニメーション
-function tick(){
-  if(spinning){
-    angle += vel;
-    vel *= dec;
-    if(vel < 0.002){ spinning=false; announceResult(); }
+    // 現在角を 0〜2π に正規化
+    let a = state.angle % (Math.PI * 2);
+    if (a < 0) a += Math.PI * 2;
+
+    // 針は上（12時基準）。上から見た角度へ変換してインデックス化
+    const fromTop = (Math.PI * 2 - a) % (Math.PI * 2);
+    const index   = Math.floor(fromTop / arc) % n;
+
+    resultEl.textContent = `結果：${state.items[index]}`;
   }
-  drawWheel();
-  requestAnimationFrame(tick);
-}
 
-// リスト描画
-function renderList(){
-  listEl.innerHTML='';
-  items.forEach((t,i)=>{
-    const li=document.createElement('li');
-    const span=document.createElement('span'); span.textContent=t;
-    const del=document.createElement('button'); del.textContent='削除';
-    del.onclick=()=>{ items.splice(i,1); resultEl.textContent=''; renderList(); };
-    li.append(span,del); listEl.appendChild(li);
+  /** アニメーション */
+  function tick() {
+    if (state.spinning) {
+      state.angle += state.vel;
+      state.vel   *= state.decel;
+      if (state.vel < 0.002) {
+        state.spinning = false;
+        announceResult();
+      }
+    }
+    drawWheel();
+    requestAnimationFrame(tick);
+  }
+
+  /** リストの再描画とUI更新 */
+  function renderList() {
+    listEl.innerHTML = '';
+    state.items.forEach((text, i) => {
+      const li   = document.createElement('li');
+      const span = document.createElement('span'); span.textContent = text;
+      const del  = document.createElement('button'); del.textContent = '削除';
+      del.onclick = () => {
+        state.items.splice(i, 1);
+        resultEl.textContent = '';
+        renderList();
+      };
+      li.append(span, del);
+      listEl.appendChild(li);
+    });
+    startBtn.disabled = state.items.length === 0;
+    drawWheel();
+  }
+
+  // ---- イベント ----
+  addBtn.addEventListener('click', () => {
+    const v = itemInput.value.trim();
+    if (!v) return;
+    state.items.push(v);
+    itemInput.value = '';
+    renderList();
   });
-  drawWheel();
-  startBtn.disabled = !items.length;
-}
+  itemInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addBtn.click();
+  });
+  clearBtn.addEventListener('click', () => {
+    state.items = [];
+    resultEl.textContent = '';
+    renderList();
+  });
+  startBtn.addEventListener('click', () => {
+    if (state.items.length === 0 || state.spinning) return;
+    state.vel = Math.random() * 0.28 + 0.28; // 初速度ランダム
+    state.spinning = true;
+  });
 
-// イベント
-addBtn.addEventListener('click',()=>{
-  const v = itemInput.value.trim(); if(!v) return;
-  items.push(v); itemInput.value=''; renderList();
-});
-itemInput.addEventListener('keydown', e => { if(e.key==='Enter') addBtn.click(); });
-clearBtn.addEventListener('click', ()=>{ items=[]; resultEl.textContent=''; renderList(); });
-startBtn.addEventListener('click', ()=>{ if(!items.length||spinning) return; vel=Math.random()*0.28+0.28; spinning=true; });
-
-renderList();
-tick();
+  // 初期表示＆アニメ開始
+  renderList();
+  tick();
 })();
 </script>
 </body>
