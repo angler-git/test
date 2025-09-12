@@ -169,18 +169,30 @@ function addPayment() {
 }
 
 function calculate() {
+  // 各人の借り・貸しの計算
   const balances = {};
   persons.forEach(p => balances[p] = 0);
+
   payments.forEach(p => {
     const share = p.amount / p.forWhom.length;
-    p.forWhom.forEach(person => balances[person] -= share);
-    balances[p.payer] += p.amount;
+    p.forWhom.forEach(person => {
+      if(person !== p.payer) balances[person] -= share; // 対象者は支払分マイナス
+    });
+    balances[p.payer] += share * (p.forWhom.includes(p.payer) ? p.forWhom.length - 1 : p.forWhom.length);
   });
+
+  // 借りている人・貸している人に分ける
+  const owes = Object.entries(balances)
+    .filter(([_, v]) => v < 0)
+    .map(([name, amt]) => ({ name, amt: -amt }));
+  const receives = Object.entries(balances)
+    .filter(([_, v]) => v > 0)
+    .map(([name, amt]) => ({ name, amt }));
+
   const result = [];
-  const owes = Object.entries(balances).filter(([k,v]) => v<0).map(([k,v]) => ({name:k, amt:-v}));
-  const receives = Object.entries(balances).filter(([k,v]) => v>0).map(([k,v]) => ({name:k, amt:v}));
   let i = 0, j = 0;
-  while(i<owes.length && j<receives.length){
+
+  while(i < owes.length && j < receives.length) {
     const pay = Math.min(owes[i].amt, receives[j].amt);
     result.push(`${owes[i].name} → ${receives[j].name}: ${pay.toFixed(0)}円`);
     owes[i].amt -= pay;
@@ -188,9 +200,15 @@ function calculate() {
     if(owes[i].amt === 0) i++;
     if(receives[j].amt === 0) j++;
   }
+
+  // 結果を表示
   const ul = document.getElementById('result');
   ul.innerHTML = '';
-  result.forEach(r => { const li = document.createElement('li'); li.textContent = r; ul.appendChild(li); });
+  result.forEach(r => {
+    const li = document.createElement('li');
+    li.textContent = r;
+    ul.appendChild(li);
+  });
 }
 
 updatePersonSelect();
