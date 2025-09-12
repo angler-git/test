@@ -1,201 +1,152 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>割り勘計算アプリ</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-  body { font-family: "Segoe UI", sans-serif; background: #f5f5f5; padding: 10px; margin: 0;}
-  h2, h3 { color: #333; text-align: center; }
-  .card { background: #fff; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);}
-  input, select, button { margin: 5px 0; padding: 10px; border-radius: 8px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;}
-  button { background: #4CAF50; color: white; border: none; cursor: pointer; transition: 0.3s; font-size: 16px; }
-  button:hover { background: #45a049; }
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; overflow-x: auto; display: block; }
-  th, td { border: 1px solid #ddd; padding: 8px; text-align: center; min-width: 80px; }
-  th { background-color: #f2f2f2; }
-  ul { padding-left: 20px; }
-  @media (max-width: 480px) {
-    h2 { font-size: 20px; }
-    h3 { font-size: 16px; }
-    button { font-size: 14px; }
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>割り勘アプリ</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    input, select, button { margin: 5px; }
+    ul { list-style: none; padding: 0; }
+    li { margin: 3px 0; }
+  </style>
 </head>
 <body>
+  <h1>割り勘アプリ</h1>
 
-<!-- 初期化ボタン -->
-<div class="card">
-  <button onclick="initialize()">初期化</button>
-</div>
-
-<!-- 参加者追加 -->
-<div class="card">
-  <h3>参加者追加</h3>
-  <input type="text" id="personName" placeholder="名前を入力">
+  <h2>参加者追加</h2>
+  <input id="personName" placeholder="名前">
   <button onclick="addPerson()">追加</button>
-  <button onclick="clearPersons()">削除</button>
-  <h4>参加者リスト</h4>
-  <ul id="personList"></ul>
-</div>
+  <ul id="persons"></ul>
 
-<!-- 支払い追加 -->
-<div class="card">
-  <h3>支払い追加</h3>
-  <label>誰が支払った: </label>
-  <select id="payer"></select><br>
-  <label>金額: </label>
-  <input type="number" id="amount" placeholder="金額"><br>
-  <label>誰の分: </label>
-  <select id="forWhom" multiple></select><br>
+  <h2>支払い入力</h2>
+  <select id="payer"></select>
+  <input id="amount" type="number" placeholder="金額">
+  <select id="forWhom" multiple></select>
   <button onclick="addPayment()">追加</button>
-</div>
+  <ul id="payments"></ul>
 
-<!-- 支払い履歴 -->
-<div class="card">
-  <h3>支払い履歴</h3>
-  <table id="paymentTable">
-    <thead>
-      <tr><th>支払者</th><th>金額</th><th>対象者</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
-
-<!-- 計算結果 -->
-<div class="card">
-  <button onclick="calculate()">精算計算</button>
-  <h3>精算結果</h3>
+  <h2>精算結果</h2>
+  <button onclick="calculate()">計算する</button>
   <ul id="result"></ul>
-</div>
 
-<script>
-let persons = JSON.parse(localStorage.getItem('persons') || '[]');
-let payments = JSON.parse(localStorage.getItem('payments') || '[]');
+  <script>
+    let persons = JSON.parse(localStorage.getItem('persons') || '[]');
+    let payments = JSON.parse(localStorage.getItem('payments') || '[]');
 
-function updatePersonSelect() {
-  const payerSelect = document.getElementById('payer');
-  const forWhomSelect = document.getElementById('forWhom');
-  payerSelect.innerHTML = '';
-  forWhomSelect.innerHTML = '';
-  persons.forEach(p => {
-    const option1 = document.createElement('option');
-    option1.value = p;
-    option1.textContent = p;
-    payerSelect.appendChild(option1);
-    const option2 = document.createElement('option');
-    option2.value = p;
-    option2.textContent = p;
-    forWhomSelect.appendChild(option2);
-  });
-  const allOption = document.createElement('option');
-  allOption.value = 'ALL';
-  allOption.textContent = '全員分';
-  forWhomSelect.insertBefore(allOption, forWhomSelect.firstChild);
-}
+    function saveData() {
+      localStorage.setItem('persons', JSON.stringify(persons));
+      localStorage.setItem('payments', JSON.stringify(payments));
+    }
 
-function updatePersonList() {
-  const list = document.getElementById('personList');
-  list.innerHTML = '';
-  persons.forEach(p => {
-    const li = document.createElement('li');
-    li.textContent = p;
-    list.appendChild(li);
-  });
-}
+    function renderPersons() {
+      const ul = document.getElementById('persons');
+      ul.innerHTML = '';
+      persons.forEach(p => {
+        const li = document.createElement('li');
+        li.textContent = p;
+        ul.appendChild(li);
+      });
 
-function renderPayments() {
-  const tbody = document.querySelector('#paymentTable tbody');
-  tbody.innerHTML = '';
-  payments.forEach(p => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${p.payer}</td><td>${p.amount}</td><td>${p.forWhom.join(', ')}</td>`;
-    tbody.appendChild(tr);
-  });
-}
+      const payer = document.getElementById('payer');
+      const forWhom = document.getElementById('forWhom');
+      payer.innerHTML = '';
+      forWhom.innerHTML = '';
 
-function saveData() {
-  localStorage.setItem('persons', JSON.stringify(persons));
-  localStorage.setItem('payments', JSON.stringify(payments));
-}
+      persons.forEach(p => {
+        const opt1 = document.createElement('option');
+        opt1.value = opt1.textContent = p;
+        payer.appendChild(opt1);
 
-function initialize() {
-  if(confirm("全てのデータを初期化しますか？")){
-    localStorage.removeItem('persons');
-    localStorage.removeItem('payments');
-    persons = [];
-    payments = [];
-    updatePersonSelect();
-    updatePersonList();
+        const opt2 = document.createElement('option');
+        opt2.value = opt2.textContent = p;
+        forWhom.appendChild(opt2);
+      });
+
+      const allOpt = document.createElement('option');
+      allOpt.value = 'ALL';
+      allOpt.textContent = '全員分';
+      forWhom.appendChild(allOpt);
+    }
+
+    function renderPayments() {
+      const ul = document.getElementById('payments');
+      ul.innerHTML = '';
+      payments.forEach(p => {
+        const li = document.createElement('li');
+        li.textContent = `${p.payer} が ${p.forWhom.join(', ')} のために ${p.amount}円 支払い`;
+        ul.appendChild(li);
+      });
+    }
+
+    function addPerson() {
+      const name = document.getElementById('personName').value.trim();
+      if (!name || persons.includes(name)) return;
+      persons.push(name);
+      saveData();
+      renderPersons();
+      document.getElementById('personName').value = '';
+    }
+
+    function addPayment() {
+      const payer = document.getElementById('payer').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+      const forWhomOptions = document.getElementById('forWhom').selectedOptions;
+      let forWhom = Array.from(forWhomOptions).map(o => o.value);
+
+      // 「全員分」を選んだときだけ persons 全員に展開
+      if (forWhom.includes('ALL')) {
+        forWhom = [...persons];
+      }
+
+      if (!payer || !amount || forWhom.length === 0) return;
+
+      payments.push({ payer, amount, forWhom });
+      saveData();
+      renderPayments();
+      document.getElementById('amount').value = '';
+    }
+
+    function calculate() {
+      const balances = {};
+      persons.forEach(p => balances[p] = 0);
+
+      payments.forEach(p => {
+        const share = p.amount / p.forWhom.length;
+        p.forWhom.forEach(person => {
+          balances[person] -= share;
+        });
+        balances[p.payer] += p.amount;
+      });
+
+      const result = [];
+      const owes = Object.entries(balances)
+        .filter(([_, v]) => v < 0)
+        .map(([k, v]) => ({ name: k, amt: -v }));
+      const receives = Object.entries(balances)
+        .filter(([_, v]) => v > 0)
+        .map(([k, v]) => ({ name: k, amt: v }));
+
+      let i = 0, j = 0;
+      while (i < owes.length && j < receives.length) {
+        const pay = Math.min(owes[i].amt, receives[j].amt);
+        result.push(`${owes[i].name} → ${receives[j].name}: ${pay.toFixed(0)}円`);
+        owes[i].amt -= pay;
+        receives[j].amt -= pay;
+        if (owes[i].amt === 0) i++;
+        if (receives[j].amt === 0) j++;
+      }
+
+      const ul = document.getElementById('result');
+      ul.innerHTML = '';
+      result.forEach(r => {
+        const li = document.createElement('li');
+        li.textContent = r;
+        ul.appendChild(li);
+      });
+    }
+
+    renderPersons();
     renderPayments();
-    document.getElementById('result').innerHTML = '';
-  }
-}
-
-function addPerson() {
-  const name = document.getElementById('personName').value.trim();
-  if(name && !persons.includes(name)){
-    persons.push(name);
-    saveData();
-    updatePersonSelect();
-    updatePersonList();
-    document.getElementById('personName').value = '';
-  }
-}
-
-function clearPersons() {
-  if(confirm("参加者と支払い履歴を削除しますか？")){
-    persons = [];
-    payments = [];
-    saveData();
-    updatePersonSelect();
-    updatePersonList();
-    renderPayments();
-    document.getElementById('result').innerHTML = '';
-  }
-}
-
-function addPayment() {
-  const payer = document.getElementById('payer').value;
-  const amount = parseFloat(document.getElementById('amount').value);
-  const forWhomOptions = document.getElementById('forWhom').selectedOptions;
-  let forWhom = Array.from(forWhomOptions).map(o => o.value);
-  if (forWhom.includes('ALL')) forWhom = [...persons];
-  if(!payer || !amount || forWhom.length === 0) return;
-  payments.push({payer, amount, forWhom});
-  saveData();
-  renderPayments();
-  document.getElementById('amount').value = '';
-}
-
-function calculate() {
-  const balances = {};
-  persons.forEach(p => balances[p] = 0);
-  payments.forEach(p => {
-    const share = p.amount / p.forWhom.length;
-    p.forWhom.forEach(person => balances[person] -= share);
-    balances[p.payer] += p.amount;
-  });
-  const result = [];
-  const owes = Object.entries(balances).filter(([k,v]) => v<0).map(([k,v]) => ({name:k, amt:-v}));
-  const receives = Object.entries(balances).filter(([k,v]) => v>0).map(([k,v]) => ({name:k, amt:v}));
-  let i = 0, j = 0;
-  while(i<owes.length && j<receives.length){
-    const pay = Math.min(owes[i].amt, receives[j].amt);
-    result.push(`${owes[i].name} → ${receives[j].name}: ${pay.toFixed(0)}円`);
-    owes[i].amt -= pay;
-    receives[j].amt -= pay;
-    if(owes[i].amt === 0) i++;
-    if(receives[j].amt === 0) j++;
-  }
-  const ul = document.getElementById('result');
-  ul.innerHTML = '';
-  result.forEach(r => { const li = document.createElement('li'); li.textContent = r; ul.appendChild(li); });
-}
-
-updatePersonSelect();
-updatePersonList();
-renderPayments();
-</script>
+  </script>
 </body>
 </html>
