@@ -216,25 +216,21 @@ function calculate() {
   result.forEach(r => { const li = document.createElement('li'); li.textContent = r; ul.appendChild(li); });
 }
 
-// プライベートブラウズ警告
-function detectPrivateMode(callback) {
+// プライベートブラウズ警告（iOS Safari向け）
+function isPrivateMode(callback) {
   try {
     localStorage.setItem('test', '1');
     localStorage.removeItem('test');
-    callback(false);
-  } catch(e) {
-    callback(true);
+    if (localStorage.length === 0) {
+      callback(true); // 容量0ならプライベートモード
+    } else {
+      callback(false);
+    }
+  } catch (e) {
+    callback(true); // 書き込みできなければプライベートモード
   }
 }
-detectPrivateMode(function(isPrivate) {
-  if (isPrivate) {
-    alert("⚠️ プライベートブラウズモードで開いています。\n数時間でデータが消える可能性があります！");
-  }
-});
 
-updatePersonSelect();
-updatePersonList();
-renderPayments();
-</script>
-</body>
-</html>
+isPrivateMode(function(isPrivate) {
+  if (isPrivate) {
+    alert("⚠️ プライベートブラウズモードで開いています。\n数時間でデータが消える
