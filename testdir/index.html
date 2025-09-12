@@ -5,9 +5,9 @@
 <title>割り勘計算アプリ</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-  body { font-family: "Segoe UI", sans-serif; background: #f5f5f5; padding: 10px; margin: 0; position: relative;}
+  body { font-family: "Segoe UI", sans-serif; background: #f5f5f5; padding: 10px; margin: 0;}
   h2, h3 { color: #333; text-align: center; }
-  .card { background: #fff; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; overflow: hidden;}
+  .card { background: #fff; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);}
   input, select, button { margin: 5px 0; padding: 10px; border-radius: 8px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;}
   button { background: #4CAF50; color: white; border: none; cursor: pointer; transition: 0.3s; font-size: 16px; }
   button:hover { background: #45a049; }
@@ -15,12 +15,6 @@
   th, td { border: 1px solid #ddd; padding: 8px; text-align: center; min-width: 80px; }
   th { background-color: #f2f2f2; }
   ul { padding-left: 20px; }
-  .top-img { width: 100%; border-radius: 12px; margin-bottom: 20px; }
-  .decor-img { position: absolute; width: 50px; opacity: 0.2; pointer-events: none; }
-  .decor-top-left { top: 5px; left: 5px; }
-  .decor-top-right { top: 5px; right: 5px; }
-  .decor-bottom-left { bottom: 5px; left: 5px; }
-  .decor-bottom-right { bottom: 5px; right: 5px; }
   @media (max-width: 480px) {
     h2 { font-size: 20px; }
     h3 { font-size: 16px; }
@@ -30,14 +24,9 @@
 </head>
 <body>
 
-<!-- ページ上部の大きなイラスト -->
-<img class="top-img" src="https://i.imgur.com/x3b5XZP.png" alt="ドラゴンボールイラスト">
-
 <!-- 初期化ボタン -->
 <div class="card">
   <button onclick="initialize()">初期化</button>
-  <img class="decor-img decor-top-left" src="https://i.imgur.com/5vK6hE8.png" alt="">
-  <img class="decor-img decor-top-right" src="https://i.imgur.com/Mm6u4zV.png" alt="">
 </div>
 
 <!-- 参加者追加 -->
@@ -48,8 +37,6 @@
   <button onclick="clearPersons()">削除</button>
   <h4>参加者リスト</h4>
   <ul id="personList"></ul>
-  <img class="decor-img decor-bottom-left" src="https://i.imgur.com/5vK6hE8.png" alt="">
-  <img class="decor-img decor-bottom-right" src="https://i.imgur.com/Mm6u4zV.png" alt="">
 </div>
 
 <!-- 支払い追加 -->
@@ -62,8 +49,6 @@
   <label>誰の分: </label>
   <select id="forWhom" multiple></select><br>
   <button onclick="addPayment()">追加</button>
-  <img class="decor-img decor-top-left" src="https://i.imgur.com/Mm6u4zV.png" alt="">
-  <img class="decor-img decor-bottom-right" src="https://i.imgur.com/5vK6hE8.png" alt="">
 </div>
 
 <!-- 支払い履歴 -->
@@ -75,8 +60,6 @@
     </thead>
     <tbody></tbody>
   </table>
-  <img class="decor-img decor-top-right" src="https://i.imgur.com/5vK6hE8.png" alt="">
-  <img class="decor-img decor-bottom-left" src="https://i.imgur.com/Mm6u4zV.png" alt="">
 </div>
 
 <!-- 計算結果 -->
@@ -84,8 +67,6 @@
   <button onclick="calculate()">精算計算</button>
   <h3>精算結果</h3>
   <ul id="result"></ul>
-  <img class="decor-img decor-top-left" src="https://i.imgur.com/5vK6hE8.png" alt="">
-  <img class="decor-img decor-bottom-right" src="https://i.imgur.com/Mm6u4zV.png" alt="">
 </div>
 
 <script>
