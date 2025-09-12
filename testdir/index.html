@@ -3,27 +3,44 @@
 <head>
 <meta charset="UTF-8">
 <title>割り勘計算アプリ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-  body { font-family: "Segoe UI", sans-serif; background: #f5f5f5; padding: 20px; }
-  h2, h3 { color: #333; }
-  .card { background: #fff; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);}
-  input, select, button { margin: 5px 0; padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
-  button { background: #4CAF50; color: white; border: none; cursor: pointer; transition: 0.3s; }
+  body { font-family: "Segoe UI", sans-serif; background: #f5f5f5; padding: 10px; margin: 0; position: relative;}
+  h2, h3 { color: #333; text-align: center; }
+  .card { background: #fff; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; overflow: hidden;}
+  input, select, button { margin: 5px 0; padding: 10px; border-radius: 8px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;}
+  button { background: #4CAF50; color: white; border: none; cursor: pointer; transition: 0.3s; font-size: 16px; }
   button:hover { background: #45a049; }
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-  th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; overflow-x: auto; display: block; }
+  th, td { border: 1px solid #ddd; padding: 8px; text-align: center; min-width: 80px; }
   th { background-color: #f2f2f2; }
   ul { padding-left: 20px; }
+  .top-img { width: 100%; border-radius: 12px; margin-bottom: 20px; }
+  .decor-img { position: absolute; width: 50px; opacity: 0.2; pointer-events: none; }
+  .decor-top-left { top: 5px; left: 5px; }
+  .decor-top-right { top: 5px; right: 5px; }
+  .decor-bottom-left { bottom: 5px; left: 5px; }
+  .decor-bottom-right { bottom: 5px; right: 5px; }
+  @media (max-width: 480px) {
+    h2 { font-size: 20px; }
+    h3 { font-size: 16px; }
+    button { font-size: 14px; }
+  }
 </style>
 </head>
 <body>
 
-<h2>割り勘計算アプリ</h2>
+<!-- ページ上部の大きなイラスト -->
+<img class="top-img" src="https://i.imgur.com/x3b5XZP.png" alt="ドラゴンボールイラスト">
 
+<!-- 初期化ボタン -->
 <div class="card">
   <button onclick="initialize()">初期化</button>
+  <img class="decor-img decor-top-left" src="https://i.imgur.com/5vK6hE8.png" alt="">
+  <img class="decor-img decor-top-right" src="https://i.imgur.com/Mm6u4zV.png" alt="">
 </div>
 
+<!-- 参加者追加 -->
 <div class="card">
   <h3>参加者追加</h3>
   <input type="text" id="personName" placeholder="名前を入力">
@@ -31,8 +48,11 @@
   <button onclick="clearPersons()">削除</button>
   <h4>参加者リスト</h4>
   <ul id="personList"></ul>
+  <img class="decor-img decor-bottom-left" src="https://i.imgur.com/5vK6hE8.png" alt="">
+  <img class="decor-img decor-bottom-right" src="https://i.imgur.com/Mm6u4zV.png" alt="">
 </div>
 
+<!-- 支払い追加 -->
 <div class="card">
   <h3>支払い追加</h3>
   <label>誰が支払った: </label>
@@ -40,10 +60,13 @@
   <label>金額: </label>
   <input type="number" id="amount" placeholder="金額"><br>
   <label>誰の分: </label>
-  <select id="forWhom" multiple style="width: 100%;"></select><br>
+  <select id="forWhom" multiple></select><br>
   <button onclick="addPayment()">追加</button>
+  <img class="decor-img decor-top-left" src="https://i.imgur.com/Mm6u4zV.png" alt="">
+  <img class="decor-img decor-bottom-right" src="https://i.imgur.com/5vK6hE8.png" alt="">
 </div>
 
+<!-- 支払い履歴 -->
 <div class="card">
   <h3>支払い履歴</h3>
   <table id="paymentTable">
@@ -52,12 +75,17 @@
     </thead>
     <tbody></tbody>
   </table>
+  <img class="decor-img decor-top-right" src="https://i.imgur.com/5vK6hE8.png" alt="">
+  <img class="decor-img decor-bottom-left" src="https://i.imgur.com/Mm6u4zV.png" alt="">
 </div>
 
+<!-- 計算結果 -->
 <div class="card">
   <button onclick="calculate()">精算計算</button>
   <h3>精算結果</h3>
   <ul id="result"></ul>
+  <img class="decor-img decor-top-left" src="https://i.imgur.com/5vK6hE8.png" alt="">
+  <img class="decor-img decor-bottom-right" src="https://i.imgur.com/Mm6u4zV.png" alt="">
 </div>
 
 <script>
@@ -69,20 +97,16 @@ function updatePersonSelect() {
   const forWhomSelect = document.getElementById('forWhom');
   payerSelect.innerHTML = '';
   forWhomSelect.innerHTML = '';
-
   persons.forEach(p => {
     const option1 = document.createElement('option');
     option1.value = p;
     option1.textContent = p;
     payerSelect.appendChild(option1);
-
     const option2 = document.createElement('option');
     option2.value = p;
     option2.textContent = p;
     forWhomSelect.appendChild(option2);
   });
-
-  // 「全員分」オプション
   const allOption = document.createElement('option');
   allOption.value = 'ALL';
   allOption.textContent = '全員分';
@@ -155,13 +179,8 @@ function addPayment() {
   const amount = parseFloat(document.getElementById('amount').value);
   const forWhomOptions = document.getElementById('forWhom').selectedOptions;
   let forWhom = Array.from(forWhomOptions).map(o => o.value);
-
-  if (forWhom.includes('ALL')) {
-    forWhom = [...persons];  // 全員対象
-  }
-
+  if (forWhom.includes('ALL')) forWhom = [...persons];
   if(!payer || !amount || forWhom.length === 0) return;
-
   payments.push({payer, amount, forWhom});
   saveData();
   renderPayments();
@@ -171,19 +190,14 @@ function addPayment() {
 function calculate() {
   const balances = {};
   persons.forEach(p => balances[p] = 0);
-
   payments.forEach(p => {
     const share = p.amount / p.forWhom.length;
-    p.forWhom.forEach(person => {
-      balances[person] -= share;
-    });
+    p.forWhom.forEach(person => balances[person] -= share);
     balances[p.payer] += p.amount;
   });
-
   const result = [];
   const owes = Object.entries(balances).filter(([k,v]) => v<0).map(([k,v]) => ({name:k, amt:-v}));
   const receives = Object.entries(balances).filter(([k,v]) => v>0).map(([k,v]) => ({name:k, amt:v}));
-
   let i = 0, j = 0;
   while(i<owes.length && j<receives.length){
     const pay = Math.min(owes[i].amt, receives[j].amt);
@@ -193,21 +207,14 @@ function calculate() {
     if(owes[i].amt === 0) i++;
     if(receives[j].amt === 0) j++;
   }
-
   const ul = document.getElementById('result');
   ul.innerHTML = '';
-  result.forEach(r => {
-    const li = document.createElement('li');
-    li.textContent = r;
-    ul.appendChild(li);
-  });
+  result.forEach(r => { const li = document.createElement('li'); li.textContent = r; ul.appendChild(li); });
 }
 
-// ページ読み込み時に反映
 updatePersonSelect();
 updatePersonList();
 renderPayments();
 </script>
-
 </body>
 </html>
