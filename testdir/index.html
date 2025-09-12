@@ -1,258 +1,197 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ルーレット</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      background: #f5f5f7;
-      padding: 18px;
-    }
-    h1 {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 700;
-    }
-    #wrap {
-      position: relative;
-      width: 90vw;
-      max-width: 520px;
-    }
-    canvas {
-      width: 100%;
-      height: auto;
-      background: #fff;
-      border-radius: 50%;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), inset 0 0 0 2px #eee;
-      display: block;
-    }
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: center;
-      align-items: center;
-    }
-    .controls input,
-    .controls button {
-      padding: 8px 10px;
-      width: 220px;
-      max-width: 70vw;
-    }
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 8px 0 0;
-      width: 100%;
-      max-width: 420px;
-    }
-    li {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #fff;
-      border: 1px solid #e5e5e5;
-      margin: 4px 0;
-      padding: 6px 8px;
-    }
-    #result {
-      font-weight: 700;
-      margin-top: 8px;
-      font-size: 18px;
-      color: crimson;
-      text-align: center;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>割り勘計算アプリ</title>
+<style>
+  body { font-family: sans-serif; padding: 20px; }
+  input, select, button { margin: 5px; }
+  table { border-collapse: collapse; margin-top: 10px; }
+  th, td { border: 1px solid #ccc; padding: 5px 10px; }
+</style>
 </head>
 <body>
-  <h1>ルーレット</h1>
-  <div id="wrap">
-    <canvas id="wheel" aria-label="ルーレット"></canvas>
-  </div>
-  <div class="controls">
-    <input type="text" id="itemInput" placeholder="項目名（Enterで追加）">
-    <button id="addBtn">追加</button>
-    <button id="startBtn" disabled>スタート</button>
-    <button id="clearBtn">全削除</button>
-    <button id="fullscreenBtn">全画面表示</button>
-  </div>
-  <ul id="list"></ul>
-  <div id="result"></div>
 
-  <script>
-    (() => {
-      const canvas = document.getElementById('wheel');
-      const ctx = canvas.getContext('2d');
-      const state = { items: [], angle: 0, vel: 0, spinning: false, decel: 0.985 };
-      const itemInput = document.getElementById('itemInput');
-      const addBtn = document.getElementById('addBtn');
-      const startBtn = document.getElementById('startBtn');
-      const clearBtn = document.getElementById('clearBtn');
-      const fullscreenBtn = document.getElementById('fullscreenBtn');
-      const listEl = document.getElementById('list');
-      const resultEl = document.getElementById('result');
+<h2>割り勘計算アプリ</h2>
 
-      function resizeCanvas() {
-        const w = canvas.clientWidth;
-        canvas.width = w;
-        canvas.height = w;
-      }
-      window.addEventListener('resize', () => { resizeCanvas(); drawWheel(); });
-      resizeCanvas();
+<div>
+  <button onclick="initialize()">初期化</button>
+</div>
 
-      const colorAt = (i, n) => `hsl(${(i * 360 / Math.max(n, 1)) % 360}, 75%, 62%)`;
+<div>
+  <label>参加者の名前: </label>
+  <input type="text" id="personName">
+  <button onclick="addPerson()">追加</button>
+  <button onclick="clearPersons()">削除</button>
+</div>
 
-      function drawNeedle(R) {
-        ctx.beginPath();
-        ctx.moveTo(R, 8);
-        ctx.lineTo(R - 14, 30);
-        ctx.lineTo(R + 14, 30);
-        ctx.closePath();
-        ctx.fillStyle = 'crimson';
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(R, 30, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
+<div>
+  <h3>参加者</h3>
+  <ul id="personList"></ul>
+</div>
 
-      function drawArcText(text, radius, startAngle, endAngle) {
-        const angle = endAngle - startAngle;
-        ctx.save();
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.rotate(startAngle + angle / 2);
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const maxFont = 18;
-        const minFont = 6;
-        let font = maxFont;
-        ctx.font = `${font}px sans-serif`;
-        let textAngle = ctx.measureText(text).width / radius;
-        while (textAngle > angle * 0.9 && font > minFont) {
-          font--;
-          ctx.font = `${font}px sans-serif`;
-          textAngle = ctx.measureText(text).width / radius;
-        }
-        let lines = [text];
-        if (textAngle > angle * 0.9) {
-          const mid = Math.floor(text.length / 2);
-          lines = [text.slice(0, mid), text.slice(mid)];
-          font = Math.min(font, (angle * 0.9 * radius) / Math.max(ctx.measureText(lines[0]).width, ctx.measureText(lines[1]).width));
-          ctx.font = `${font}px sans-serif`;
-        }
-        const lineHeight = font * 1.2;
-        if (lines.length === 1) {
-          ctx.fillText(lines[0], 0, -radius * 0.62);
-        } else {
-          ctx.fillText(lines[0], 0, -radius * 0.62 - lineHeight / 2);
-          ctx.fillText(lines[1], 0, -radius * 0.62 + lineHeight / 2);
-        }
-        ctx.restore();
-      }
+<div>
+  <h3>支払い追加</h3>
+  <label>誰が支払った: </label>
+  <select id="payer"></select>
+  <label>金額: </label>
+  <input type="number" id="amount">
+  <label>誰の分: </label>
+  <select id="forWhom" multiple></select>
+  <button onclick="addPayment()">追加</button>
+</div>
 
-      function drawWheel() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const SIZE = canvas.width;
-        const R = SIZE / 2;
-        const C = { x: R, y: R };
+<div>
+  <h3>支払い履歴</h3>
+  <table id="paymentTable">
+    <thead>
+      <tr><th>支払者</th><th>金額</th><th>対象者</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
 
-        if (state.items.length === 0) {
-          ctx.beginPath();
-          ctx.arc(C.x, C.y, R, 0, 2 * Math.PI);
-          ctx.fillStyle = '#fafafa';
-          ctx.fill();
-          ctx.strokeStyle = '#e5e5e5';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          drawNeedle(R);
-          ctx.font = '16px sans-serif';
-          ctx.fillStyle = '#666';
-          ctx.fillText('項目を追加してください', C.x, C.y);
-          return;
-        }
+<div>
+  <button onclick="calculate()">計算</button>
+  <h3>精算結果</h3>
+  <ul id="result"></ul>
+</div>
 
-        const n = state.items.length;
-        const arc = 2 * Math.PI / n;
+<script>
+let persons = JSON.parse(localStorage.getItem('persons') || '[]');
+let payments = JSON.parse(localStorage.getItem('payments') || '[]');
 
-        for (let i = 0; i < n; i++) {
-          const start = state.angle + i * arc;
-          const end = start + arc;
-          ctx.beginPath();
-          ctx.moveTo(C.x, C.y);
-          ctx.arc(C.x, C.y, R, start, end);
-          ctx.closePath();
-          ctx.fillStyle = colorAt(i, n);
-          ctx.fill();
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 1;
-          ctx.stroke();
+function updatePersonSelect() {
+  const payerSelect = document.getElementById('payer');
+  const forWhomSelect = document.getElementById('forWhom');
+  payerSelect.innerHTML = '';
+  forWhomSelect.innerHTML = '';
+  persons.forEach(p => {
+    const option1 = document.createElement('option');
+    option1.value = p;
+    option1.textContent = p;
+    payerSelect.appendChild(option1);
+    const option2 = document.createElement('option');
+    option2.value = p;
+    option2.textContent = p;
+    forWhomSelect.appendChild(option2);
+  });
+}
 
-          drawArcText(state.items[i], R, start, end);
-        }
+function updatePersonList() {
+  const list = document.getElementById('personList');
+  list.innerHTML = '';
+  persons.forEach(p => {
+    const li = document.createElement('li');
+    li.textContent = p;
+    list.appendChild(li);
+  });
+}
 
-        ctx.beginPath();
-        ctx.arc(C.x, C.y, R * 0.06, 0, 2 * Math.PI);
-        ctx.fillStyle = '#fff';
-        ctx.fill();
-        ctx.strokeStyle = '#ddd';
-        ctx.stroke();
-        drawNeedle(R);
-      }
+function renderPayments() {
+  const tbody = document.querySelector('#paymentTable tbody');
+  tbody.innerHTML = '';
+  payments.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${p.payer}</td><td>${p.amount}</td><td>${p.forWhom.join(', ')}</td>`;
+    tbody.appendChild(tr);
+  });
+}
 
-      function announceResult() {
-        if (state.items.length === 0) return;
-        const n = state.items.length;
-        const arc = 2 * Math.PI / n;
-        let a = state.angle % (2 * Math.PI);
-        if (a < 0) a += 2 * Math.PI;
-        const fromTop = (2 * Math.PI - a) % (2 * Math.PI);
-        const idx = Math.floor(fromTop / arc) % n;
-        resultEl.textContent = `結果：${state.items[idx]}`;
-      }
+function saveData() {
+  localStorage.setItem('persons', JSON.stringify(persons));
+  localStorage.setItem('payments', JSON.stringify(payments));
+}
 
-      function tick() {
-        if (state.spinning) {
-          state.angle += state.vel;
-          state.vel *= state.decel;
-          if (state.vel < 0.002) {
-            state.spinning = false;
-            announceResult();
-          }
-        }
-        drawWheel();
-        requestAnimationFrame(tick);
-      }
+function initialize() {
+  if(confirm("全てのデータを初期化しますか？")){
+    localStorage.removeItem('persons');
+    localStorage.removeItem('payments');
+    persons = [];
+    payments = [];
+    updatePersonSelect();
+    updatePersonList();
+    renderPayments();
+    document.getElementById('result').innerHTML = '';
+  }
+}
 
-      function renderList() {
-        listEl.innerHTML = '';
-        state.items.forEach((t, i) => {
-          const li = document.createElement('li');
-          const span = document.createElement('span');
-          span.textContent = t;
-          const del = document.createElement('button');
-          del.textContent = '削除';
-          del.onclick = () => {
-            state.items.splice(i, 1);
-            resultEl.textContent = '';
-            renderList();
-          };
-          li.append(span, del);
-          listEl.appendChild(li);
-        });
-        startBtn.disabled = state.items.length === 0;
-        drawWheel();
-      }
+function addPerson() {
+  const name = document.getElementById('personName').value.trim();
+  if(name && !persons.includes(name)){
+    persons.push(name);
+    saveData();
+    updatePersonSelect();
+    updatePersonList();
+    document.getElementById('personName').value = '';
+  }
+}
 
-      addBtn.addEventListener('click', () => {
-        const v = itemInput.value.trim();
-        if (!v) return;
-        state.items.push(v);
-        itemInput.value = '';
-        renderList();
-      });
-      itemInput.addEventListener 
+function clearPersons() {
+  if(confirm("参加者と支払い履歴を削除しますか？")){
+    persons = [];
+    payments = [];
+    saveData();
+    updatePersonSelect();
+    updatePersonList();
+    renderPayments();
+    document.getElementById('result').innerHTML = '';
+  }
+}
+
+function addPayment() {
+  const payer = document.getElementById('payer').value;
+  const amount = parseFloat(document.getElementById('amount').value);
+  const forWhomOptions = document.getElementById('forWhom').selectedOptions;
+  const forWhom = Array.from(forWhomOptions).map(o => o.value);
+  if(!payer || !amount || forWhom.length === 0) return;
+
+  payments.push({payer, amount, forWhom});
+  saveData();
+  renderPayments();
+  document.getElementById('amount').value = '';
+}
+
+function calculate() {
+  const balances = {};
+  persons.forEach(p => balances[p] = 0);
+
+  payments.forEach(p => {
+    const share = p.amount / p.forWhom.length;
+    p.forWhom.forEach(person => {
+      balances[person] -= share;
+    });
+    balances[p.payer] += p.amount;
+  });
+
+  const result = [];
+  const owes = Object.entries(balances).filter(([k,v]) => v<0).map(([k,v]) => ({name:k, amt:-v}));
+  const receives = Object.entries(balances).filter(([k,v]) => v>0).map(([k,v]) => ({name:k, amt:v}));
+
+  let i = 0, j = 0;
+  while(i<owes.length && j<receives.length){
+    const pay = Math.min(owes[i].amt, receives[j].amt);
+    result.push(`${owes[i].name} → ${receives[j].name}: ${pay.toFixed(0)}円`);
+    owes[i].amt -= pay;
+    receives[j].amt -= pay;
+    if(owes[i].amt === 0) i++;
+    if(receives[j].amt === 0) j++;
+  }
+
+  const ul = document.getElementById('result');
+  ul.innerHTML = '';
+  result.forEach(r => {
+    const li = document.createElement('li');
+    li.textContent = r;
+    ul.appendChild(li);
+  });
+}
+
+// ページ読み込み時にデータを反映
+updatePersonSelect();
+updatePersonList();
+renderPayments();
+
+</script>
+</body>
+</html>
