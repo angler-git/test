@@ -7,7 +7,14 @@
 <style>
   body { font-family: "Segoe UI", sans-serif; background: #f5f5f5; padding: 10px; margin: 0;}
   h1, h2, h3 { color: #333; text-align: center; margin: 10px 0; }
-  h1 { font-size: 28px; }
+  h1 { font-size: 28px; position: relative; }
+  .deploy-time {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: 12px;
+    color: #666;
+  }
   .card { background: #fff; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);}
   input, select, button { margin: 5px 0; padding: 10px; border-radius: 8px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;}
   button { background: #4CAF50; color: white; border: none; cursor: pointer; transition: 0.3s; font-size: 16px; }
@@ -32,7 +39,10 @@
 </head>
 <body>
 
-<h1>💰割り勘計算アプリ💰</h1>
+<h1>
+  💰割り勘計算アプリ💰
+  <span id="deployTime" class="deploy-time"></span>
+</h1>
 
 <div class="card">
   <button onclick="initialize()">初期化</button>
@@ -84,6 +94,16 @@
 let persons = JSON.parse(localStorage.getItem('persons') || '[]');
 let payments = JSON.parse(localStorage.getItem('payments') || '[]');
 
+// デプロイ日時表示
+const now = new Date();
+const formatted = now.getFullYear() + '/' +
+                  String(now.getMonth()+1).padStart(2,'0') + '/' +
+                  String(now.getDate()).padStart(2,'0') + ' ' +
+                  String(now.getHours()).padStart(2,'0') + ':' +
+                  String(now.getMinutes()).padStart(2,'0') + ':' +
+                  String(now.getSeconds()).padStart(2,'0');
+document.getElementById('deployTime').textContent = formatted;
+
 function updatePersonSelect() {
   const payerSelect = document.getElementById('payer');
   const forWhomSelect = document.getElementById('forWhom');
@@ -122,7 +142,6 @@ function renderPayments() {
   tbody.innerHTML = '';
   payments.forEach((p, index) => {
     const tr = document.createElement('tr');
-    // 対象者を改行付き文字列に変換（1人最大10文字）
     const formattedForWhom = p.forWhom.map(name => name.substring(0,10)).join('\n');
     tr.innerHTML = `
       <td><input type="checkbox" data-index="${index}"></td>
