@@ -6,24 +6,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body { font-family: "Segoe UI", sans-serif; background: #f5f5f5; padding: 10px; margin: 0;}
-  h1, h2, h3 { color: #333; text-align: center; margin: 10px 0; }
-  h1 { font-size: 28px; }
+  h2, h3 { color: #333; text-align: center; }
+  .header { text-align: center; font-size: 22px; margin: 10px 0; }
   .card { background: #fff; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);}
   input, select, button { margin: 5px 0; padding: 10px; border-radius: 8px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;}
   button { background: #4CAF50; color: white; border: none; cursor: pointer; transition: 0.3s; font-size: 16px; }
   button:hover { background: #45a049; }
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; overflow-x: auto; display: block; }
-  th, td { border: 1px solid #ddd; padding: 6px; text-align: center; min-width: 60px; }
-  th { background-color: #f2f2f2; font-size: 14px; }
-  /* 支払い履歴データ部分を小さくして改行可能に */
-  #paymentTable tbody td {
-    font-size: 12px;
-    word-break: break-word;
-    white-space: pre-line;
-  }
-  ul { padding-left: 20px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; overflow-x: auto; display: block; font-size: 12px; }
+  th, td { border: 1px solid #ddd; padding: 4px; text-align: center; min-width: 60px; word-break: break-word; }
+  th { background-color: #f2f2f2; font-size: 13px; }
+  ul { padding-left: 0; text-align: center; list-style: none; }
+  #personList li { margin: 3px 0; }
+  .small-text { font-size: 12px; }
   @media (max-width: 480px) {
-    h1 { font-size: 22px; }
     h2 { font-size: 20px; }
     h3 { font-size: 16px; }
     button { font-size: 14px; }
@@ -32,21 +27,24 @@
 </head>
 <body>
 
-<h1>💰割り勘計算アプリ💰</h1>
+<div class="header">💰割り勘計算アプリ💰</div>
 
+<!-- 初期化ボタン -->
 <div class="card">
   <button onclick="initialize()">初期化</button>
 </div>
 
+<!-- 参加者追加 -->
 <div class="card">
   <h3>参加者追加</h3>
   <input type="text" id="personName" placeholder="名前を入力">
   <button onclick="addPerson()">追加</button>
-  <button onclick="deleteSelectedPersons()">選択削除</button>
+  <button onclick="removeSelectedPersons()">選択削除</button>
   <h3>参加者リスト</h3>
   <ul id="personList"></ul>
 </div>
 
+<!-- 支払い追加 -->
 <div class="card">
   <h3>支払い追加</h3>
   <label>誰が支払った: </label>
@@ -58,22 +56,19 @@
   <button onclick="addPayment()">追加</button>
 </div>
 
+<!-- 支払い履歴 -->
 <div class="card">
   <h3>支払い履歴</h3>
-  <button onclick="deleteSelectedPayments()">選択削除</button>
+  <button onclick="removeSelectedPayments()">選択削除</button>
   <table id="paymentTable">
     <thead>
-      <tr>
-        <th>選択</th>
-        <th>支払者</th>
-        <th>金額</th>
-        <th>対象者</th>
-      </tr>
+      <tr><th>選択</th><th>支払者</th><th>金額</th><th>対象者</th></tr>
     </thead>
     <tbody></tbody>
   </table>
 </div>
 
+<!-- 計算結果 -->
 <div class="card">
   <button onclick="calculate()">精算計算</button>
   <h3>精算結果</h3>
@@ -91,10 +86,12 @@ function updatePersonSelect() {
   forWhomSelect.innerHTML = '';
   persons.forEach(p => {
     const option1 = document.createElement('option');
-    option1.value = p; option1.textContent = p;
+    option1.value = p;
+    option1.textContent = p;
     payerSelect.appendChild(option1);
     const option2 = document.createElement('option');
-    option2.value = p; option2.textContent = p;
+    option2.value = p;
+    option2.textContent = p;
     forWhomSelect.appendChild(option2);
   });
   const allOption = document.createElement('option');
@@ -108,11 +105,11 @@ function updatePersonList() {
   list.innerHTML = '';
   persons.forEach(p => {
     const li = document.createElement('li');
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.value = p;
-    li.appendChild(checkbox);
-    li.appendChild(document.createTextNode(' ' + p));
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.value = p;
+    li.appendChild(chk);
+    li.appendChild(document.createTextNode(" " + p));
     list.appendChild(li);
   });
 }
@@ -120,15 +117,13 @@ function updatePersonList() {
 function renderPayments() {
   const tbody = document.querySelector('#paymentTable tbody');
   tbody.innerHTML = '';
-  payments.forEach((p, index) => {
+  payments.forEach((p, idx) => {
     const tr = document.createElement('tr');
-    const formattedForWhom = p.forWhom.map(name => name.substring(0,10)).join('\n');
     tr.innerHTML = `
-      <td><input type="checkbox" data-index="${index}"></td>
+      <td><input type="checkbox" value="${idx}"></td>
       <td>${p.payer}</td>
       <td>${p.amount}</td>
-      <td>${formattedForWhom}</td>
-    `;
+      <td>${p.forWhom.join('<br>')}</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -162,18 +157,16 @@ function addPerson() {
   }
 }
 
-function deleteSelectedPersons() {
-  const checkboxes = document.querySelectorAll('#personList input[type="checkbox"]:checked');
-  if(checkboxes.length === 0) return;
-  if(!confirm("選択した参加者とその支払いを削除しますか？")) return;
-  const selectedNames = Array.from(checkboxes).map(cb => cb.value);
-  persons = persons.filter(p => !selectedNames.includes(p));
-  payments = payments.filter(pay => !pay.forWhom.some(f => selectedNames.includes(f)) && !selectedNames.includes(pay.payer));
+function removeSelectedPersons() {
+  const checks = document.querySelectorAll('#personList input[type="checkbox"]:checked');
+  if (checks.length === 0) return;
+  const namesToRemove = Array.from(checks).map(c => c.value);
+  persons = persons.filter(p => !namesToRemove.includes(p));
+  payments = payments.filter(p => !namesToRemove.includes(p.payer) && !p.forWhom.some(f => namesToRemove.includes(f)));
   saveData();
   updatePersonSelect();
   updatePersonList();
   renderPayments();
-  document.getElementById('result').innerHTML = '';
 }
 
 function addPayment() {
@@ -189,15 +182,13 @@ function addPayment() {
   document.getElementById('amount').value = '';
 }
 
-function deleteSelectedPayments() {
-  const checkboxes = document.querySelectorAll('#paymentTable tbody input[type="checkbox"]:checked');
-  if(checkboxes.length === 0) return;
-  if(!confirm("選択した支払いを削除しますか？")) return;
-  const indexes = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index));
-  payments = payments.filter((_, i) => !indexes.includes(i));
+function removeSelectedPayments() {
+  const checks = document.querySelectorAll('#paymentTable tbody input[type="checkbox"]:checked');
+  if (checks.length === 0) return;
+  const indexes = Array.from(checks).map(c => parseInt(c.value));
+  payments = payments.filter((_, idx) => !indexes.includes(idx));
   saveData();
   renderPayments();
-  document.getElementById('result').innerHTML = '';
 }
 
 function calculate() {
@@ -205,22 +196,14 @@ function calculate() {
   persons.forEach(p => balances[p] = 0);
   payments.forEach(p => {
     const share = p.amount / p.forWhom.length;
-    p.forWhom.forEach(person => {
-      if(person !== p.payer) balances[person] -= share;
-    });
-    balances[p.payer] += share * (p.forWhom.includes(p.payer) ? p.forWhom.length - 1 : p.forWhom.length);
+    p.forWhom.forEach(person => balances[person] -= share);
+    balances[p.payer] += p.amount;
   });
-
-  const owes = Object.entries(balances)
-    .filter(([_, v]) => v < 0)
-    .map(([name, amt]) => ({ name, amt: -amt }));
-  const receives = Object.entries(balances)
-    .filter(([_, v]) => v > 0)
-    .map(([name, amt]) => ({ name, amt }));
-
   const result = [];
+  const owes = Object.entries(balances).filter(([k,v]) => v<0).map(([k,v]) => ({name:k, amt:-v}));
+  const receives = Object.entries(balances).filter(([k,v]) => v>0).map(([k,v]) => ({name:k, amt:v}));
   let i = 0, j = 0;
-  while(i < owes.length && j < receives.length){
+  while(i<owes.length && j<receives.length){
     const pay = Math.min(owes[i].amt, receives[j].amt);
     result.push(`${owes[i].name} → ${receives[j].name}: ${pay.toFixed(0)}円`);
     owes[i].amt -= pay;
@@ -228,15 +211,26 @@ function calculate() {
     if(owes[i].amt === 0) i++;
     if(receives[j].amt === 0) j++;
   }
-
   const ul = document.getElementById('result');
   ul.innerHTML = '';
-  result.forEach(r => { 
-    const li = document.createElement('li'); 
-    li.textContent = r; 
-    ul.appendChild(li); 
-  });
+  result.forEach(r => { const li = document.createElement('li'); li.textContent = r; ul.appendChild(li); });
 }
+
+// プライベートブラウズ警告
+function detectPrivateMode(callback) {
+  try {
+    localStorage.setItem('test', '1');
+    localStorage.removeItem('test');
+    callback(false);
+  } catch(e) {
+    callback(true);
+  }
+}
+detectPrivateMode(function(isPrivate) {
+  if (isPrivate) {
+    alert("⚠️ プライベートブラウズモードで開いています。\n数時間でデータが消える可能性があります！");
+  }
+});
 
 updatePersonSelect();
 updatePersonList();
