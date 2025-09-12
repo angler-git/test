@@ -16,6 +16,12 @@
   th, td { border: 1px solid #ddd; padding: 8px; text-align: center; min-width: 80px; }
   th { background-color: #f2f2f2; }
   ul { padding-left: 20px; }
+  /* 支払い履歴をスマホ向けに小さく・改行可能に */
+  #paymentTable td { 
+    font-size: 12px; 
+    word-break: break-word; 
+    white-space: pre-line; 
+  }
   @media (max-width: 480px) {
     h1 { font-size: 22px; }
     h2 { font-size: 20px; }
@@ -26,15 +32,12 @@
 </head>
 <body>
 
-<!-- ヘッダー -->
 <h1>💰割り勘計算アプリ💰</h1>
 
-<!-- 初期化ボタン -->
 <div class="card">
   <button onclick="initialize()">初期化</button>
 </div>
 
-<!-- 参加者追加 -->
 <div class="card">
   <h3>参加者追加</h3>
   <input type="text" id="personName" placeholder="名前を入力">
@@ -44,7 +47,6 @@
   <ul id="personList"></ul>
 </div>
 
-<!-- 支払い追加 -->
 <div class="card">
   <h3>支払い追加</h3>
   <label>誰が支払った: </label>
@@ -56,7 +58,6 @@
   <button onclick="addPayment()">追加</button>
 </div>
 
-<!-- 支払い履歴 -->
 <div class="card">
   <h3>支払い履歴</h3>
   <button onclick="deleteSelectedPayments()">選択削除</button>
@@ -73,7 +74,6 @@
   </table>
 </div>
 
-<!-- 計算結果 -->
 <div class="card">
   <button onclick="calculate()">精算計算</button>
   <h3>精算結果</h3>
@@ -84,7 +84,6 @@
 let persons = JSON.parse(localStorage.getItem('persons') || '[]');
 let payments = JSON.parse(localStorage.getItem('payments') || '[]');
 
-// 参加者セレクト更新
 function updatePersonSelect() {
   const payerSelect = document.getElementById('payer');
   const forWhomSelect = document.getElementById('forWhom');
@@ -104,7 +103,6 @@ function updatePersonSelect() {
   forWhomSelect.insertBefore(allOption, forWhomSelect.firstChild);
 }
 
-// 参加者リスト表示（チェックボックス付き）
 function updatePersonList() {
   const list = document.getElementById('personList');
   list.innerHTML = '';
@@ -119,29 +117,28 @@ function updatePersonList() {
   });
 }
 
-// 支払い表示（チェックボックス付き）
 function renderPayments() {
   const tbody = document.querySelector('#paymentTable tbody');
   tbody.innerHTML = '';
   payments.forEach((p, index) => {
     const tr = document.createElement('tr');
+    // 対象者を改行で表示、最大10文字
+    const formattedForWhom = p.forWhom.map(name => name.substring(0,10)).join('\n');
     tr.innerHTML = `
       <td><input type="checkbox" data-index="${index}"></td>
       <td>${p.payer}</td>
       <td>${p.amount}</td>
-      <td>${p.forWhom.join(', ')}</td>
+      <td>${formattedForWhom}</td>
     `;
     tbody.appendChild(tr);
   });
 }
 
-// データ保存
 function saveData() {
   localStorage.setItem('persons', JSON.stringify(persons));
   localStorage.setItem('payments', JSON.stringify(payments));
 }
 
-// 初期化
 function initialize() {
   if(confirm("全てのデータを初期化しますか？")){
     localStorage.removeItem('persons');
@@ -155,7 +152,6 @@ function initialize() {
   }
 }
 
-// 参加者追加
 function addPerson() {
   const name = document.getElementById('personName').value.trim();
   if(name && !persons.includes(name)){
@@ -167,7 +163,6 @@ function addPerson() {
   }
 }
 
-// 選択参加者削除
 function deleteSelectedPersons() {
   const checkboxes = document.querySelectorAll('#personList input[type="checkbox"]:checked');
   if(checkboxes.length === 0) return;
@@ -182,7 +177,6 @@ function deleteSelectedPersons() {
   document.getElementById('result').innerHTML = '';
 }
 
-// 支払い追加
 function addPayment() {
   const payer = document.getElementById('payer').value;
   const amount = parseFloat(document.getElementById('amount').value);
@@ -196,7 +190,6 @@ function addPayment() {
   document.getElementById('amount').value = '';
 }
 
-// 選択支払い削除
 function deleteSelectedPayments() {
   const checkboxes = document.querySelectorAll('#paymentTable tbody input[type="checkbox"]:checked');
   if(checkboxes.length === 0) return;
@@ -208,7 +201,6 @@ function deleteSelectedPayments() {
   document.getElementById('result').innerHTML = '';
 }
 
-// 精算計算
 function calculate() {
   const balances = {};
   persons.forEach(p => balances[p] = 0);
@@ -247,7 +239,6 @@ function calculate() {
   });
 }
 
-// 初期描画
 updatePersonSelect();
 updatePersonList();
 renderPayments();
