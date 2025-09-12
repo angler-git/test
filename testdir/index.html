@@ -17,7 +17,6 @@
   th { background-color: #f2f2f2; font-size: 13px; }
   ul { padding-left: 0; text-align: center; list-style: none; }
   #personList li { margin: 3px 0; }
-  .small-text { font-size: 12px; }
   @media (max-width: 480px) {
     h2 { font-size: 20px; }
     h3 { font-size: 16px; }
@@ -29,12 +28,10 @@
 
 <div class="header">💰割り勘計算アプリ💰</div>
 
-<!-- 初期化ボタン -->
 <div class="card">
   <button onclick="initialize()">初期化</button>
 </div>
 
-<!-- 参加者追加 -->
 <div class="card">
   <h3>参加者追加</h3>
   <input type="text" id="personName" placeholder="名前を入力">
@@ -44,7 +41,6 @@
   <ul id="personList"></ul>
 </div>
 
-<!-- 支払い追加 -->
 <div class="card">
   <h3>支払い追加</h3>
   <label>誰が支払った: </label>
@@ -56,7 +52,6 @@
   <button onclick="addPayment()">追加</button>
 </div>
 
-<!-- 支払い履歴 -->
 <div class="card">
   <h3>支払い履歴</h3>
   <button onclick="removeSelectedPayments()">選択削除</button>
@@ -68,7 +63,6 @@
   </table>
 </div>
 
-<!-- 計算結果 -->
 <div class="card">
   <button onclick="calculate()">精算計算</button>
   <h3>精算結果</h3>
@@ -216,21 +210,4 @@ function calculate() {
   result.forEach(r => { const li = document.createElement('li'); li.textContent = r; ul.appendChild(li); });
 }
 
-// プライベートブラウズ警告（iOS Safari向け）
-function isPrivateMode(callback) {
-  try {
-    localStorage.setItem('test', '1');
-    localStorage.removeItem('test');
-    if (localStorage.length === 0) {
-      callback(true); // 容量0ならプライベートモード
-    } else {
-      callback(false);
-    }
-  } catch (e) {
-    callback(true); // 書き込みできなければプライベートモード
-  }
-}
-
-isPrivateMode(function(isPrivate) {
-  if (isPrivate) {
-    alert("⚠️ プライベートブラウズモードで開いています。\n数時間でデータが消える
+//
