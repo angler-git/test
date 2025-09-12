@@ -16,10 +16,10 @@
   th, td { border: 1px solid #ddd; padding: 8px; text-align: center; min-width: 80px; }
   th { background-color: #f2f2f2; }
   ul { padding-left: 20px; }
-  /* 支払い履歴をスマホ向けに小さく・改行可能に */
-  #paymentTable td { 
-    font-size: 12px; 
-    word-break: break-word; 
+  /* 支払い履歴データ部分を小さくして改行可能に */
+  #paymentTable tbody td {
+    font-size: 12px;
+    word-break: break-word;
     white-space: pre-line; 
   }
   @media (max-width: 480px) {
@@ -122,7 +122,7 @@ function renderPayments() {
   tbody.innerHTML = '';
   payments.forEach((p, index) => {
     const tr = document.createElement('tr');
-    // 対象者を改行で表示、最大10文字
+    // 対象者を改行付き文字列に変換（1人最大10文字）
     const formattedForWhom = p.forWhom.map(name => name.substring(0,10)).join('\n');
     tr.innerHTML = `
       <td><input type="checkbox" data-index="${index}"></td>
