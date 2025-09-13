@@ -55,6 +55,8 @@
   <input type="number" id="amount" placeholder="金額"><br>
   <label>誰の分: </label>
   <select id="forWhom" multiple></select><br>
+  <label>何代: </label>
+  <input type="text" id="note" placeholder="例: ランチ代"><br>
   <button onclick="addPayment()">追加</button>
 </div>
 
@@ -63,7 +65,7 @@
   <h3>支払い履歴</h3>
   <table id="paymentTable">
     <thead>
-      <tr><th>選択</th><th>支払者</th><th>金額</th><th>対象者</th></tr>
+      <tr><th>選択</th><th>支払者</th><th>金額</th><th>対象者</th><th>何代</th></tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -166,7 +168,8 @@ function renderPayments() {
       <td><input type="checkbox" data-index="${idx}"></td>
       <td>${p.payer}</td>
       <td>${p.amount}</td>
-      <td>${p.forWhom.join('<br>')}</td>`;
+      <td>${p.forWhom.join('<br>')}</td>
+      <td>${p.note || ''}</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -211,13 +214,15 @@ function deletePerson(idx) {
 function addPayment() {
   const payer = document.getElementById('payer').value;
   const amount = parseFloat(document.getElementById('amount').value);
+  const note = document.getElementById('note').value.trim();
   let forWhom = Array.from(document.getElementById('forWhom').selectedOptions).map(o => o.value);
   if (forWhom.includes('ALL')) forWhom = [...persons];
   if(!payer || !amount || forWhom.length === 0) return;
-  payments.push({payer, amount, forWhom});
+  payments.push({payer, amount, forWhom, note});
   saveData();
   renderPayments();
   document.getElementById('amount').value = '';
+  document.getElementById('note').value = '';
 }
 
 function deleteSelectedPayments() {
@@ -244,24 +249,4 @@ function calculate() {
     const pay = Math.min(owes[i].amt, receives[j].amt);
     result.push(`${owes[i].name} → ${receives[j].name}: ${pay.toFixed(0)}円`);
     owes[i].amt -= pay;
-    receives[j].amt -= pay;
-    if(owes[i].amt === 0) i++;
-    if(receives[j].amt === 0) j++;
-  }
-  const ul = document.getElementById('result');
-  ul.innerHTML = '';
-  result.forEach(r => { const li = document.createElement('li'); li.textContent = r; ul.appendChild(li); });
-}
-
-// ===== 初期処理 =====
-(async function(){
-  try {
-    await openDB();
-    await loadData();
-  } catch(e) {
-    alert("プライベートブラウズではデータが保存されません。通常モードでご利用ください。");
-  }
-})();
-</script>
-</body>
-</html>
+    receives
