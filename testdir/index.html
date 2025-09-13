@@ -143,12 +143,17 @@ function updatePersonList() {
     li.style.display = 'flex';
     li.style.justifyContent = 'space-between';
     li.style.alignItems = 'center';
-    li.innerHTML = `<span>${p}</span>`;
+
+    const span = document.createElement('span');
+    span.textContent = p;
+    li.appendChild(span);
+
     const btn = document.createElement('button');
     btn.textContent = '削除';
     btn.style.marginLeft = '10px';
     btn.onclick = () => deletePerson(idx);
     li.appendChild(btn);
+
     ul.appendChild(li);
   });
 }
@@ -163,7 +168,12 @@ function renderPayments() {
       <td>${p.amount}</td>
       <td>${p.forWhom.join('<br>')}</td>
       <td>${p.note || ''}</td>
-      <td><button onclick="deletePayment(${idx})">削除</button></td>`;
+      <td></td>`;
+    const td = tr.querySelector('td:last-child');
+    const btn = document.createElement('button');
+    btn.textContent = '削除';
+    btn.onclick = () => deletePayment(idx);
+    td.appendChild(btn);
     tbody.appendChild(tr);
   });
 }
@@ -231,3 +241,9 @@ function calculate(){
   let i=0,j=0;
   while(i<owes.length && j<receives.length){
     const pay = Math.min(owes[i].amt, receives[j].amt);
+    result.push(`${owes[i].name} → ${receives[j].name}: ${pay.toFixed(0)}円`);
+    owes[i].amt-=pay; receives[j].amt-=pay;
+    if(owes[i].amt===0)i++; if(receives[j].amt===0)j++;
+  }
+  const ul=document.getElementById('result'); ul.innerHTML='';
+  result.forEach(r=>{
