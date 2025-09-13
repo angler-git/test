@@ -80,7 +80,6 @@ class WarikanApp {
     this.persons = [];
     this.payments = [];
 
-    // DOM要素
     this.personNameInput = document.getElementById('personName');
     this.payerSelect = document.getElementById('payer');
     this.forWhomSelect = document.getElementById('forWhom');
@@ -94,6 +93,7 @@ class WarikanApp {
   }
 
   async init() {
+    this.checkPrivateMode();
     this.disableButtons(true);
     await this.openDB();
     await this.loadData();
@@ -102,6 +102,22 @@ class WarikanApp {
 
   disableButtons(flag) {
     document.querySelectorAll('button').forEach(b => b.disabled = flag);
+  }
+
+  // プライベートブラウザ判定
+  checkPrivateMode() {
+    try {
+      const testDB = indexedDB.open("test");
+      let called = false;
+      testDB.onerror = () => {
+        if(!called){ called=true;
+          alert("⚠ プライベートブラウザでは、数時間でデータが破棄される可能性があります。");
+        }
+      };
+      testDB.onsuccess = () => testDB.result.close();
+    } catch(e) {
+      alert("⚠ プライベートブラウザでは、数時間でデータが破棄される可能性があります。");
+    }
   }
 
   openDB() {
