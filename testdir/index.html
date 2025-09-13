@@ -14,7 +14,8 @@
   table { width: 100%; border-collapse: collapse; margin-top: 10px; overflow-x: auto; display: block; font-size: 12px; }
   th, td { border: 1px solid #ddd; padding: 6px; text-align: center; min-width: 60px; word-break: break-word; }
   th { background-color: #f2f2f2; font-size: 14px; }
-  ul { padding-left: 20px; text-align: center; }
+  ul { padding-left: 20px; text-align: center; list-style: none; }
+  li { margin-bottom: 5px; }
   @media (max-width: 480px) {
     h2 { font-size: 20px; }
     h3 { font-size: 16px; }
@@ -56,11 +57,10 @@
   <h3>支払い履歴</h3>
   <table id="paymentTable">
     <thead>
-      <tr><th>選択</th><th>支払者</th><th>金額</th><th>対象者</th><th>何代</th></tr>
+      <tr><th>支払者</th><th>金額</th><th>対象者</th><th>何代</th><th>操作</th></tr>
     </thead>
     <tbody></tbody>
   </table>
-  <button onclick="deleteSelectedPayments()">選択削除</button>
 </div>
 
 <div class="card">
@@ -138,12 +138,16 @@ function updatePersonSelect() {
 function updatePersonList() {
   const ul = document.getElementById('personList');
   ul.innerHTML = '';
-  persons.forEach((p,idx)=>{
+  persons.forEach((p, idx) => {
     const li = document.createElement('li');
-    li.textContent = p;
+    li.style.display = 'flex';
+    li.style.justifyContent = 'space-between';
+    li.style.alignItems = 'center';
+    li.innerHTML = `<span>${p}</span>`;
     const btn = document.createElement('button');
     btn.textContent = '削除';
-    btn.onclick = ()=>deletePerson(idx);
+    btn.style.marginLeft = '10px';
+    btn.onclick = () => deletePerson(idx);
     li.appendChild(btn);
     ul.appendChild(li);
   });
@@ -155,11 +159,11 @@ function renderPayments() {
   payments.forEach((p, idx) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><input type="checkbox" data-index="${idx}"></td>
       <td>${p.payer}</td>
       <td>${p.amount}</td>
       <td>${p.forWhom.join('<br>')}</td>
-      <td>${p.note || ''}</td>`;
+      <td>${p.note || ''}</td>
+      <td><button onclick="deletePayment(${idx})">削除</button></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -208,10 +212,8 @@ function addPayment(){
   document.getElementById('note').value='';
 }
 
-function deleteSelectedPayments(){
-  const checks = document.querySelectorAll('#paymentTable tbody input[type=checkbox]:checked');
-  const indexes = Array.from(checks).map(c=>parseInt(c.dataset.index));
-  payments = payments.filter((_,i)=>!indexes.includes(i));
+function deletePayment(idx){
+  payments.splice(idx,1);
   saveData();
   renderPayments();
 }
@@ -229,16 +231,3 @@ function calculate(){
   let i=0,j=0;
   while(i<owes.length && j<receives.length){
     const pay = Math.min(owes[i].amt, receives[j].amt);
-    result.push(`${owes[i].name} → ${receives[j].name}: ${pay.toFixed(0)}円`);
-    owes[i].amt-=pay; receives[j].amt-=pay;
-    if(owes[i].amt===0)i++; if(receives[j].amt===0)j++;
-  }
-  const ul=document.getElementById('result'); ul.innerHTML='';
-  result.forEach(r=>{const li=document.createElement('li'); li.textContent=r; ul.appendChild(li);});
-}
-
-// ===== 初期化 =====
-openDB().then(loadData);
-</script>
-</body>
-</html>
