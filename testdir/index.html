@@ -15,7 +15,7 @@
   th, td { border: 1px solid #ddd; padding: 6px; text-align: center; min-width: 60px; word-break: break-word; }
   th { background-color: #f2f2f2; font-size: 14px; }
   ul { padding-left: 20px; text-align: center; list-style: none; }
-  li { margin-bottom: 5px; }
+  li { margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;}
   @media (max-width: 480px) {
     h2 { font-size: 20px; }
     h3 { font-size: 16px; }
@@ -29,13 +29,13 @@
 <h2>💰割り勘計算アプリ💰</h2>
 
 <div class="card">
-  <button onclick="initialize()">初期化</button>
+  <button id="initBtn" onclick="initialize()" disabled>初期化</button>
 </div>
 
 <div class="card">
   <h3>参加者追加</h3>
   <input type="text" id="personName" placeholder="名前を入力">
-  <button onclick="addPerson()">追加</button>
+  <button id="addPersonBtn" onclick="addPerson()" disabled>追加</button>
   <h3>参加者リスト</h3>
   <ul id="personList"></ul>
 </div>
@@ -50,7 +50,7 @@
   <select id="forWhom" multiple></select><br>
   <label>何代: </label>
   <input type="text" id="note" placeholder="例: ランチ代"><br>
-  <button onclick="addPayment()">追加</button>
+  <button id="addPaymentBtn" onclick="addPayment()" disabled>追加</button>
 </div>
 
 <div class="card">
@@ -64,7 +64,7 @@
 </div>
 
 <div class="card">
-  <button onclick="calculate()">精算計算</button>
+  <button id="calculateBtn" onclick="calculate()" disabled>精算計算</button>
   <h3>精算結果</h3>
   <ul id="result"></ul>
 </div>
@@ -74,111 +74,87 @@ let db;
 let persons = [];
 let payments = [];
 
-// ===== IndexedDB =====
+// IndexedDB 開く
 function openDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open("WarikanDB", 1);
-    request.onerror = () => reject("DB開けない");
-    request.onsuccess = () => { db = request.result; resolve(db); };
-    request.onupgradeneeded = (e) => {
-      db = e.target.result;
+  return new Promise((resolve, reject)=>{
+    const request = indexedDB.open("WarikanDB",1);
+    request.onerror=()=>reject("DB開けない");
+    request.onsuccess=()=>{db=request.result; resolve(db);};
+    request.onupgradeneeded=(e)=>{
+      db=e.target.result;
       if(!db.objectStoreNames.contains("data")) db.createObjectStore("data");
     };
   });
 }
 
-function saveToDB(key, value) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("data", "readwrite");
-    tx.objectStore("data").put(value, key);
-    tx.oncomplete = resolve;
-    tx.onerror = reject;
+function saveToDB(key,value){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction("data","readwrite");
+    tx.objectStore("data").put(value,key);
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject();
   });
 }
 
-function loadFromDB(key) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("data", "readonly");
-    const req = tx.objectStore("data").get(key);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = reject;
+function loadFromDB(key){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction("data","readonly");
+    const req=tx.objectStore("data").get(key);
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject();
   });
 }
 
-// ===== データ処理 =====
-async function saveData() {
-  await saveToDB("persons", persons);
-  await saveToDB("payments", payments);
-}
-
-async function loadData() {
-  persons = await loadFromDB("persons") || [];
-  payments = await loadFromDB("payments") || [];
+async function saveData(){ await saveToDB("persons",persons); await saveToDB("payments",payments); }
+async function loadData(){
+  persons = await loadFromDB("persons")||[];
+  payments = await loadFromDB("payments")||[];
   updatePersonSelect();
   updatePersonList();
   renderPayments();
 }
 
-// ===== UI更新 =====
-function updatePersonSelect() {
-  const payerSelect = document.getElementById('payer');
-  const forWhomSelect = document.getElementById('forWhom');
-  payerSelect.innerHTML = '';
-  forWhomSelect.innerHTML = '';
-  persons.forEach(p => {
-    payerSelect.add(new Option(p, p));
-    forWhomSelect.add(new Option(p, p));
+// UI 更新
+function updatePersonSelect(){
+  const payer=document.getElementById('payer');
+  const forWhom=document.getElementById('forWhom');
+  payer.innerHTML=''; forWhom.innerHTML='';
+  persons.forEach(p=>{
+    payer.add(new Option(p,p));
+    forWhom.add(new Option(p,p));
   });
-  if (persons.length > 0) {
-    const allOption = new Option("全員分","ALL");
-    forWhomSelect.insertBefore(allOption, forWhomSelect.firstChild);
+  if(persons.length>0){
+    const allOption=new Option("全員分","ALL");
+    forWhom.insertBefore(allOption,forWhom.firstChild);
   }
 }
 
-function updatePersonList() {
-  const ul = document.getElementById('personList');
-  ul.innerHTML = '';
-  persons.forEach((p, idx) => {
-    const li = document.createElement('li');
-    li.style.display = 'flex';
-    li.style.justifyContent = 'space-between';
-    li.style.alignItems = 'center';
-
-    const span = document.createElement('span');
-    span.textContent = p;
-    li.appendChild(span);
-
-    const btn = document.createElement('button');
-    btn.textContent = '削除';
-    btn.style.marginLeft = '10px';
-    btn.onclick = () => deletePerson(idx);
-    li.appendChild(btn);
-
+function updatePersonList(){
+  const ul=document.getElementById('personList');
+  ul.innerHTML='';
+  persons.forEach((p,idx)=>{
+    const li=document.createElement('li');
+    const span=document.createElement('span'); span.textContent=p; li.appendChild(span);
+    const btn=document.createElement('button'); btn.textContent='削除';
+    btn.onclick=()=>deletePerson(idx); li.appendChild(btn);
     ul.appendChild(li);
   });
 }
 
-function renderPayments() {
-  const tbody = document.querySelector('#paymentTable tbody');
-  tbody.innerHTML = '';
-  payments.forEach((p, idx) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${p.payer}</td>
-      <td>${p.amount}</td>
-      <td>${p.forWhom.join('<br>')}</td>
-      <td>${p.note || ''}</td>
-      <td></td>`;
-    const td = tr.querySelector('td:last-child');
-    const btn = document.createElement('button');
-    btn.textContent = '削除';
-    btn.onclick = () => deletePayment(idx);
-    td.appendChild(btn);
+function renderPayments(){
+  const tbody=document.querySelector('#paymentTable tbody');
+  tbody.innerHTML='';
+  payments.forEach((p,idx)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${p.payer}</td><td>${p.amount}</td><td>${p.forWhom.join('<br>')}</td><td>${p.note||''}</td><td></td>`;
+    const td=tr.querySelector('td:last-child');
+    const btn=document.createElement('button'); btn.textContent='削除';
+    btn.onclick=()=>deletePayment(idx); td.appendChild(btn);
     tbody.appendChild(tr);
   });
 }
 
-// ===== 操作 =====
+// 操作
 function initialize(){
   if(confirm("全データを初期化しますか？")){
     persons=[]; payments=[];
@@ -189,8 +165,8 @@ function initialize(){
 }
 
 function addPerson(){
-  const name = document.getElementById('personName').value.trim();
-  if(name && !persons.includes(name)){
+  const name=document.getElementById('personName').value.trim();
+  if(name&&!persons.includes(name)){
     persons.push(name);
     saveData();
     updatePersonSelect(); updatePersonList();
@@ -199,33 +175,28 @@ function addPerson(){
 }
 
 function deletePerson(idx){
-  const name = persons[idx];
+  const name=persons[idx];
   persons.splice(idx,1);
-  payments = payments.map(p=>{
-    return {...p, forWhom: p.forWhom.filter(f=>f!==name)};
-  }).filter(p=>p.forWhom.length>0);
+  payments=payments.map(p=>({...p,forWhom:p.forWhom.filter(f=>f!==name)})).filter(p=>p.forWhom.length>0);
   saveData();
   updatePersonSelect(); updatePersonList(); renderPayments();
 }
 
 function addPayment(){
-  const payer = document.getElementById('payer').value;
-  const amount = parseFloat(document.getElementById('amount').value);
-  const note = document.getElementById('note').value.trim();
-  let forWhom = Array.from(document.getElementById('forWhom').selectedOptions).map(o=>o.value);
-  if(forWhom.includes('ALL')) forWhom = [...persons];
-  if(!payer || !amount || forWhom.length===0) return;
-  payments.push({payer, amount, forWhom, note});
-  saveData();
-  renderPayments();
-  document.getElementById('amount').value='';
-  document.getElementById('note').value='';
+  const payer=document.getElementById('payer').value;
+  const amount=parseFloat(document.getElementById('amount').value);
+  const note=document.getElementById('note').value.trim();
+  let forWhom=Array.from(document.getElementById('forWhom').selectedOptions).map(o=>o.value);
+  if(forWhom.includes('ALL')) forWhom=[...persons];
+  if(!payer||!amount||forWhom.length===0) return;
+  payments.push({payer,amount,forWhom,note});
+  saveData(); renderPayments();
+  document.getElementById('amount').value=''; document.getElementById('note').value='';
 }
 
 function deletePayment(idx){
   payments.splice(idx,1);
-  saveData();
-  renderPayments();
+  saveData(); renderPayments();
 }
 
 function calculate(){
@@ -236,14 +207,26 @@ function calculate(){
     balances[p.payer]+=p.amount;
   });
   const result=[];
-  const owes = Object.entries(balances).filter(([_,v])=>v<0).map(([n,v])=>({name:n,amt:-v}));
-  const receives = Object.entries(balances).filter(([_,v])=>v>0).map(([n,v])=>({name:n,amt:v}));
+  const owes=Object.entries(balances).filter(([_,v])=>v<0).map(([n,v])=>({name:n,amt:-v}));
+  const receives=Object.entries(balances).filter(([_,v])=>v>0).map(([n,v])=>({name:n,amt:v}));
   let i=0,j=0;
-  while(i<owes.length && j<receives.length){
-    const pay = Math.min(owes[i].amt, receives[j].amt);
+  while(i<owes.length&&j<receives.length){
+    const pay=Math.min(owes[i].amt,receives[j].amt);
     result.push(`${owes[i].name} → ${receives[j].name}: ${pay.toFixed(0)}円`);
     owes[i].amt-=pay; receives[j].amt-=pay;
     if(owes[i].amt===0)i++; if(receives[j].amt===0)j++;
   }
   const ul=document.getElementById('result'); ul.innerHTML='';
-  result.forEach(r=>{
+  result.forEach(r=>{const li=document.createElement('li'); li.textContent=r; ul.appendChild(li);});
+}
+
+// 初回ロード時に DB 開き、データをロードしてボタン有効化
+window.onload = async ()=>{
+  await openDB();
+  await loadData();
+  document.querySelectorAll('button').forEach(b=>b.disabled=false);
+};
+</script>
+
+</body>
+</html>
