@@ -14,7 +14,6 @@
   table { width: 100%; border-collapse: collapse; margin-top: 10px; overflow-x: auto; display: block; font-size: 12px; }
   th, td { border: 1px solid #ddd; padding: 6px; text-align: center; min-width: 60px; word-break: break-word; }
   th { background-color: #f2f2f2; font-size: 14px; }
-  /* 支払い履歴対象者欄 */
   #paymentTable td:nth-child(3) { min-width: 140px; }
   ul { padding-left: 20px; text-align: center; list-style: none; }
   li { margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
@@ -202,4 +201,21 @@ function calculate(){
   let i=0,j=0;
   while(i<owes.length&&j<receives.length){
     const pay=Math.min(owes[i].amt,receives[j].amt);
-   
+    result.push(`${owes[i].name} → ${receives[j].name}: ${pay.toFixed(0)}円`);
+    owes[i].amt-=pay; receives[j].amt-=pay;
+    if(owes[i].amt===0)i++; if(receives[j].amt===0)j++;
+  }
+  const ul=document.getElementById('result'); ul.innerHTML='';
+  result.forEach(r=>{const li=document.createElement('li'); li.textContent=r; ul.appendChild(li);});
+}
+
+// 初回ロード時に DB 開き、データをロードしてボタン有効化
+window.onload = async ()=>{
+  document.querySelectorAll('button').forEach(b=>b.disabled=true);
+  await openDB();
+  await loadData();
+  document.querySelectorAll('button').forEach(b=>b.disabled=false);
+};
+</script>
+</body>
+</html>
