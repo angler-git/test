@@ -37,9 +37,13 @@
   <h3>参加者追加</h3>
   <input type="text" id="personName" placeholder="名前を入力">
   <button onclick="addPerson()">追加</button>
-  <button onclick="deleteSelectedPerson()">選択削除</button>
   <h3>参加者リスト</h3>
-  <select id="personList" multiple style="width:100%; height:100px;"></select>
+  <table id="personTable">
+    <thead>
+      <tr><th>名前</th><th>操作</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 </div>
 
 <!-- 支払い追加 -->
@@ -121,7 +125,7 @@ async function loadData() {
   persons = await loadFromDB("persons") || [];
   payments = await loadFromDB("payments") || [];
   updatePersonSelect();
-  updatePersonList();
+  renderPersonTable();
   renderPayments();
 }
 
@@ -132,21 +136,24 @@ function updatePersonSelect() {
   payerSelect.innerHTML = '';
   forWhomSelect.innerHTML = '';
   persons.forEach(p => {
-    const option1 = new Option(p, p);
-    payerSelect.add(option1);
-    const option2 = new Option(p, p);
-    forWhomSelect.add(option2);
+    payerSelect.add(new Option(p, p));
+    forWhomSelect.add(new Option(p, p));
   });
-  const allOption = new Option("全員分", "ALL");
-  forWhomSelect.insertBefore(allOption, forWhomSelect.firstChild);
+  if (persons.length > 0) {
+    const allOption = new Option("全員分", "ALL");
+    forWhomSelect.insertBefore(allOption, forWhomSelect.firstChild);
+  }
 }
 
-function updatePersonList() {
-  const list = document.getElementById('personList');
-  list.innerHTML = '';
-  persons.forEach(p => {
-    const option = new Option(p, p);
-    list.add(option);
+function renderPersonTable() {
+  const tbody = document.querySelector('#personTable tbody');
+  tbody.innerHTML = '';
+  persons.forEach((p, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p}</td>
+      <td><button onclick="deletePerson(${idx})">削除</button></td>`;
+    tbody.appendChild(tr);
   });
 }
 
@@ -171,7 +178,7 @@ function initialize() {
     payments = [];
     saveData();
     updatePersonSelect();
-    updatePersonList();
+    renderPersonTable();
     renderPayments();
     document.getElementById('result').innerHTML = '';
   }
@@ -183,23 +190,21 @@ function addPerson() {
     persons.push(name);
     saveData();
     updatePersonSelect();
-    updatePersonList();
+    renderPersonTable();
     document.getElementById('personName').value = '';
   }
 }
 
-function deleteSelectedPerson() {
-  const list = document.getElementById('personList');
-  const selected = Array.from(list.selectedOptions).map(o => o.value);
-  if(selected.length === 0) return;
-  persons = persons.filter(p => !selected.includes(p));
+function deletePerson(idx) {
+  const name = persons[idx];
+  persons.splice(idx, 1);
   payments = payments.map(pay => ({
     ...pay,
-    forWhom: pay.forWhom.filter(f => !selected.includes(f))
+    forWhom: pay.forWhom.filter(f => f !== name)
   })).filter(pay => pay.forWhom.length > 0);
   saveData();
   updatePersonSelect();
-  updatePersonList();
+  renderPersonTable();
   renderPayments();
 }
 
